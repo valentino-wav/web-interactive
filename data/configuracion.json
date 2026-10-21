@@ -1,6 +1,32 @@
 {
   "moneda": "ARS",
   "iva": 0.21,
+  "pasos": [
+    {
+      "numero": 1,
+      "titulo": "Servicios"
+    },
+    {
+      "numero": 2,
+      "titulo": "Plan y plazo"
+    },
+    {
+      "numero": 3,
+      "titulo": "Tus datos"
+    },
+    {
+      "numero": 4,
+      "titulo": "Revisión"
+    },
+    {
+      "numero": 5,
+      "titulo": "Pago"
+    },
+    {
+      "numero": 6,
+      "titulo": "Listo"
+    }
+  ],
   "planesSoporte": [
     {
       "id": "sin-soporte",
@@ -45,10 +71,26 @@
     }
   ],
   "tramosDescuento": [
-    { "desde": 0, "porcentaje": 0, "etiqueta": "Sin descuento por volumen" },
-    { "desde": 1000000, "porcentaje": 0.05, "etiqueta": "5% por volumen" },
-    { "desde": 2500000, "porcentaje": 0.1, "etiqueta": "10% por volumen" },
-    { "desde": 5000000, "porcentaje": 0.15, "etiqueta": "15% por volumen" }
+    {
+      "desde": 0,
+      "porcentaje": 0,
+      "etiqueta": "Sin descuento por volumen"
+    },
+    {
+      "desde": 1000000,
+      "porcentaje": 0.05,
+      "etiqueta": "5% por volumen"
+    },
+    {
+      "desde": 2500000,
+      "porcentaje": 0.1,
+      "etiqueta": "10% por volumen"
+    },
+    {
+      "desde": 5000000,
+      "porcentaje": 0.15,
+      "etiqueta": "15% por volumen"
+    }
   ],
   "mediosPago": [
     {

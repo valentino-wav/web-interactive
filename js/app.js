@@ -10,7 +10,6 @@ import * as interfaz from "./interfaz.js";
 const CATEGORIA_TODAS = "Todas";
 const PASO_INICIAL = 1;
 const PASO_PAGO = 5;
-const PASO_FINAL = 6;
 const DEMORA_PAGO = 1400;
 const PATRON_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -118,6 +117,9 @@ function totalesActuales() {
 
 const esEditable = () => estado.fase === "borrador";
 
+/** El último paso sale del largo de la lista del JSON, no de un número suelto acá. */
+const ultimoPaso = () => estado.configuracion.pasos.length;
+
 // ------------------------------------------------------------
 //  Validación y navegación
 // ------------------------------------------------------------
@@ -178,13 +180,13 @@ function motivoBloqueo(numero) {
  * viejo apenas el usuario cambiaba algo de un paso anterior.
  */
 function pasoMaximoAlcanzable() {
-    for (let numero = 1; numero < PASO_FINAL; numero += 1) {
+    for (let numero = 1; numero < ultimoPaso(); numero += 1) {
         if (motivoBloqueo(numero) !== "") {
             return numero;
         }
     }
 
-    return PASO_FINAL;
+    return ultimoPaso();
 }
 
 /**
@@ -193,7 +195,7 @@ function pasoMaximoAlcanzable() {
  * en Continuar se salteaba un paso.
  */
 function irAPaso(numero, { avisar = true } = {}) {
-    const destino = Math.min(Math.max(numero, PASO_INICIAL), PASO_FINAL);
+    const destino = Math.min(Math.max(numero, PASO_INICIAL), ultimoPaso());
     const tope = pasoMaximoAlcanzable();
 
     if (destino > tope) {
@@ -209,7 +211,7 @@ function irAPaso(numero, { avisar = true } = {}) {
         return;
     }
 
-    interfaz.limpiarAvisosPaso();
+    interfaz.limpiarAvisosPaso(estado.configuracion.pasos);
     estado.paso = destino;
     actualizar();
     interfaz.irAlCotizador();
@@ -411,7 +413,7 @@ async function pagar() {
         estado.fase = "pagada";
 
         interfaz.notificar("exito", "¡Pago registrado! El servicio quedó contratado.");
-        irAPaso(PASO_FINAL);
+        irAPaso(ultimoPaso());
     } finally {
         estado.enviando = false;
         interfaz.procesando(false);
@@ -592,8 +594,8 @@ function actualizar() {
     const lineas = hidratarLineas();
     const { planesSoporte, plazos, mediosPago } = estado.configuracion;
 
-    interfaz.renderBarraPasos(estado.paso, pasoMaximoAlcanzable());
-    interfaz.mostrarPaso(estado.paso);
+    interfaz.renderBarraPasos(estado.configuracion.pasos, estado.paso, pasoMaximoAlcanzable());
+    interfaz.mostrarPaso(estado.configuracion.pasos, estado.paso);
     interfaz.mostrarBannerCongelado(estado.fase, estado.cotizacionActivaId);
 
     interfaz.renderFiltros(obtenerCategorias(), estado.categoria);

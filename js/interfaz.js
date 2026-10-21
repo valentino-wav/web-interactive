@@ -4,15 +4,6 @@
 //  En este archivo no guardo estado ni hago cuentas de precios.
 // ============================================================
 
-export const PASOS = [
-    { numero: 1, titulo: "Servicios" },
-    { numero: 2, titulo: "Plan y plazo" },
-    { numero: 3, titulo: "Tus datos" },
-    { numero: 4, titulo: "Revisión" },
-    { numero: 5, titulo: "Pago" },
-    { numero: 6, titulo: "Listo" }
-];
-
 const nodos = {
     cotizador: document.getElementById("cotizador"),
     avisoServidor: document.getElementById("aviso-servidor"),
@@ -161,8 +152,8 @@ export function mostrarAvisoPaso(numero, mensaje) {
     aviso.hidden = mensaje === "";
 }
 
-export function limpiarAvisosPaso() {
-    PASOS.forEach(({ numero }) => mostrarAvisoPaso(numero, ""));
+export function limpiarAvisosPaso(pasos) {
+    pasos.forEach(({ numero }) => mostrarAvisoPaso(numero, ""));
 }
 
 /**
@@ -269,8 +260,8 @@ export function procesando(mostrar, mensaje = "Procesando el pago…") {
 //  Navegación entre pasos
 // ------------------------------------------------------------
 
-export function renderBarraPasos(pasoActual, pasoMaximo) {
-    nodos.barraPasos.innerHTML = PASOS
+export function renderBarraPasos(pasos, pasoActual, pasoMaximo) {
+    nodos.barraPasos.innerHTML = pasos
         .map(({ numero, titulo }) => {
             const alcanzable = numero <= pasoMaximo;
             const completado = numero < pasoActual;
@@ -290,9 +281,14 @@ export function renderBarraPasos(pasoActual, pasoMaximo) {
         .join("");
 }
 
-export function mostrarPaso(numero) {
-    PASOS.forEach((paso) => {
-        document.getElementById(`paso-panel-${paso.numero}`).hidden = paso.numero !== numero;
+export function mostrarPaso(pasos, numero) {
+    pasos.forEach((paso) => {
+        // Los pasos vienen del JSON, así que no doy por hecho que exista el panel.
+        const panel = document.getElementById(`paso-panel-${paso.numero}`);
+
+        if (panel) {
+            panel.hidden = paso.numero !== numero;
+        }
     });
 }
 
