@@ -7,11 +7,14 @@
 const RUTA_SERVICIOS = "data/servicios.json";
 const RUTA_CONFIGURACION = "data/configuracion.json";
 
-const CLAVE_BORRADOR = "fennec.presupuesto.v1";
-const CLAVE_HISTORIAL = "fennec.historial.v1";
-const VERSION_BORRADOR = 1;
+// v2 porque los guardados viejos traen plan y plazo, campos que ya no existen.
+// Subiendo la versión se descartan solos en lugar de entrar a medias.
+const CLAVE_BORRADOR = "fennec.presupuesto.v2";
+const CLAVE_HISTORIAL = "fennec.historial.v2";
+const VERSION_BORRADOR = 2;
 
 const CANTIDAD_MAXIMA_POR_DEFECTO = 10;
+const HORAS_POR_SEMANA = 40;
 
 /**
  * En qué punto está la cotización que se está armando.
@@ -20,13 +23,12 @@ const CANTIDAD_MAXIMA_POR_DEFECTO = 10;
  */
 export const FASES = Object.freeze({
     BORRADOR: "borrador",
-    CONFIRMADA: "confirmada",
     PAGADA: "pagada"
 });
 
-/** Estado de una cotización ya emitida. */
+/** Estado de una cotización ya emitida. Nace contratada: confirmar y pagar
+ *  son una sola acción, así que no hay estado intermedio. */
 export const ESTADOS = Object.freeze({
-    PENDIENTE: "pendiente-pago",
     CONTRATADA: "contratada",
     ANULADA: "anulada"
 });
@@ -227,7 +229,7 @@ function textoSeguro(valor, maximo) {
  * y acomodo las cantidades que quedaron fuera de rango.
  */
 export function sanearBorrador(borrador, servicios, configuracion) {
-    const { planesSoporte, plazos, mediosPago } = configuracion;
+    const { mediosPago } = configuracion;
     const guardado = borrador || {};
     const descartados = [];
 
@@ -254,8 +256,6 @@ export function sanearBorrador(borrador, servicios, configuracion) {
         descartados,
         borrador: {
             items,
-            planId: existeEn(planesSoporte, guardado.planId) ? guardado.planId : planesSoporte[0].id,
-            plazoId: existeEn(plazos, guardado.plazoId) ? guardado.plazoId : plazos[0].id,
             medioPagoId: existeEn(mediosPago, guardado.medioPagoId) ? guardado.medioPagoId : "",
             cliente: {
                 nombre: textoSeguro(clienteGuardado.nombre, LIMITES.nombre),
@@ -301,16 +301,10 @@ export function resolverTramo(tramos, monto) {
  * El cálculo completo del presupuesto. Función pura: le paso un objeto y
  * me devuelve otro, sin leer el estado global ni el DOM.
  *
- * Dos cosas del orden que me costaron entender:
- *
- * - El descuento por volumen va sobre la base, antes del plan y del plazo.
- *   Cuando lo dejaba para después, pedir la entrega Express inflaba el
- *   subtotal, cruzaba el umbral siguiente y terminaba dando más descuento.
- *
- * - El ajuste por medio de pago va antes del IVA. El IVA es el 21% del
- *   neto, así que si el recargo se suma después el comprobante no cierra.
+ * El ajuste por medio de pago va antes del IVA, no después: el IVA es el 21%
+ * del neto, así que sumando el recargo después el comprobante no cierra.
  */
-export function calcularTotales({ lineas, plan, plazo, tramos, iva }) {
+export function calcularTotales({ lineas, tramos, iva }) {
     const base = redondear(
         lineas.reduce((acumulado, { precioUnitario, cantidad }) => acumulado + precioUnitario * cantidad, 0)
     );
@@ -318,11 +312,7 @@ export function calcularTotales({ lineas, plan, plazo, tramos, iva }) {
 
     const tramo = resolverTramo(tramos, base);
     const descuento = redondear(base * tramo.porcentaje);
-    const baseNeta = redondear(base - descuento);
-
-    const soporte = redondear(baseNeta * (plan.multiplicador - 1));
-    const recargoPlazo = redondear(baseNeta * plazo.recargo);
-    const neto = redondear(baseNeta + soporte + recargoPlazo);
+    const neto = redondear(base - descuento);
 
     // Acá todavía no hay medio de pago elegido: el ajuste lo aplica después
     // aplicarMedioPago(), ya sobre la cotización emitida. Dejo las dos claves
@@ -338,16 +328,14 @@ export function calcularTotales({ lineas, plan, plazo, tramos, iva }) {
         horas,
         tramo,
         descuento,
-        baseNeta,
-        soporte,
-        recargoPlazo,
         neto,
         ajustePago,
         netoFinal,
         iva: montoIva,
         tasaIva: iva,
         totalAPagar,
-        semanas: plazo.semanas
+        // Ya no se elige plazo: lo estimo de las horas, a 40 por semana.
+        semanas: Math.ceil(horas / HORAS_POR_SEMANA)
     };
 }
 

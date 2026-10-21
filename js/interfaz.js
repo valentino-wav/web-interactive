@@ -1,13 +1,3 @@
-// ============================================================
-//  interfaz.js — Todo lo que se ve.
-//  Acá está cada innerHTML y cada texto que le llega al usuario.
-//  En este archivo no guardo estado ni hago cuentas de precios.
-//
-//  Lo único que importo son las constantes de estado de datos.js, para no
-//  tener los mismos textos escritos en dos archivos. Sigue sin haber ciclos:
-//  datos.js no importa nada de nadie.
-// ============================================================
-
 import { ESTADOS, FASES, LIMITES } from "./datos.js";
 
 const nodos = {
@@ -18,18 +8,14 @@ const nodos = {
     errorMensaje: document.getElementById("cotizador-error-mensaje"),
     contenido: document.getElementById("cotizador-contenido"),
     barraPasos: document.getElementById("paso-barra"),
-    bannerCongelado: document.getElementById("banner-congelado"),
-    bannerCongeladoTexto: document.getElementById("banner-congelado-texto"),
-    botonEditar: document.getElementById("btn-editar-cotizacion"),
     catalogoGrid: document.getElementById("catalogo-grid"),
     catalogoFiltros: document.getElementById("catalogo-filtros"),
     presupuestoLista: document.getElementById("presupuesto-lista"),
+    resumen: document.getElementById("presupuesto-resumen"),
     botonVaciar: document.getElementById("btn-vaciar-presupuesto"),
     buscador: document.getElementById("catalogo-buscador"),
-    opciones: document.getElementById("presupuesto-opciones"),
-    revision: document.getElementById("revision-detalle"),
-    pagoDetalle: document.getElementById("pago-detalle"),
-    pagoMedios: document.getElementById("pago-medios"),
+    confirmacionResumen: document.getElementById("confirmacion-resumen"),
+    confirmacionPago: document.getElementById("confirmacion-pago"),
     exito: document.getElementById("exito-detalle"),
     historialLista: document.getElementById("historial-lista")
 };
@@ -206,46 +192,13 @@ export function limpiarAvisosPaso(pasos) {
 }
 
 /**
- * Mi propio modal, por si SweetAlert2 no llegó a cargar (sin internet, por
- * ejemplo). Prefiero esto antes que quedarme sin confirmación o caer en los
- * cuadros de diálogo nativos del navegador.
+ * El cuerpo del modal que pide confirmar la contratación.
+ * No recibe número de cotización: al fusionar confirmar y pagar, el número
+ * recién se emite después de que el usuario acepta este modal.
  */
-function modalPropio(titulo, cuerpoHtml, textoConfirmar, conCancelar) {
-    return new Promise((resolver) => {
-        const capa = document.createElement("div");
-        capa.className = "modal-propio";
-        capa.innerHTML = `
-            <div class="modal-propio-caja" role="dialog" aria-modal="true">
-                <h3>${escapar(titulo)}</h3>
-                <div class="modal-propio-cuerpo">${cuerpoHtml}</div>
-                <div class="modal-propio-acciones">
-                    ${conCancelar ? '<button type="button" class="btn-borde" data-respuesta="no">Cancelar</button>' : ""}
-                    <button type="button" class="btn-lima" data-respuesta="si">${escapar(textoConfirmar)}</button>
-                </div>
-            </div>`;
-
-        capa.addEventListener("click", (evento) => {
-            const boton = evento.target.closest("[data-respuesta]");
-            if (!boton) {
-                return;
-            }
-            capa.remove();
-            resolver(boton.dataset.respuesta === "si");
-        });
-
-        document.body.append(capa);
-        capa.querySelector('[data-respuesta="si"]').focus();
-    });
-}
-
-/**
- * El cuerpo del modal que pide confirmar el pago.
- * Lo tenía escrito dentro de app.js, con un style embebido y el color lima a
- * mano. El markup y los colores son cosa de este archivo.
- */
-export function cuerpoConfirmacionPago(numero, monto, nombreMedio) {
+export function cuerpoConfirmacionPago(monto, nombreMedio) {
     return `
-        <p>Estás por abonar la cotización <strong>${escapar(numero)}</strong>.</p>
+        <p>Estás por contratar los servicios de tu presupuesto.</p>
         <p class="modal-monto">${formatearMoneda(monto)}</p>
         <p>Medio de pago: <strong>${escapar(nombreMedio)}</strong>.<br>
            Al confirmar, el servicio queda contratado.</p>`;
@@ -253,10 +206,6 @@ export function cuerpoConfirmacionPago(numero, monto, nombreMedio) {
 
 /** Le pregunta al usuario y devuelve true o false. */
 export async function confirmar(titulo, cuerpoHtml, textoConfirmar) {
-    if (typeof Swal === "undefined") {
-        return modalPropio(titulo, cuerpoHtml, textoConfirmar, true);
-    }
-
     const { isConfirmed } = await Swal.fire({
         title: titulo,
         html: cuerpoHtml,
@@ -322,10 +271,10 @@ export function procesando(mostrar) {
 //  Navegación entre pasos
 // ------------------------------------------------------------
 
-export function renderBarraPasos(pasos, pasoActual, pasoMaximo) {
+export function renderBarraPasos(pasos, pasoActual, pasoMaximo, pasoMinimo = 1) {
     nodos.barraPasos.innerHTML = pasos
         .map(({ numero, titulo }) => {
-            const alcanzable = numero <= pasoMaximo;
+            const alcanzable = numero >= pasoMinimo && numero <= pasoMaximo;
             const completado = numero < pasoActual;
             const actual = numero === pasoActual;
 
@@ -356,21 +305,6 @@ export function mostrarPaso(pasos, numero) {
 
 export function irAlCotizador() {
     nodos.cotizador.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-/**
- * Solo lo muestro cuando la cotizacion esta confirmada y sin pagar, que es
- * el unico momento en que "Editar" hace algo. Una vez pagada no se puede
- * tocar nada, asi que el aviso solo ocuparia lugar.
- */
-export function mostrarBannerCongelado(fase, numero) {
-    const sePuedeAnular = fase === FASES.CONFIRMADA;
-
-    nodos.bannerCongelado.hidden = !sePuedeAnular;
-
-    if (sePuedeAnular) {
-        nodos.bannerCongeladoTexto.textContent = `${numero} confirmada y esperando el pago.`;
-    }
 }
 
 // ------------------------------------------------------------
@@ -471,84 +405,35 @@ function filaResumen(etiqueta, valor, clase = "") {
         </div>`;
 }
 
-/**
- * Llena todos los resúmenes de la página de una sola vez. Cada bloque dice
- * cuánto detalle quiere con data-resumen, así no necesito una función por
- * cada lugar donde aparece.
- */
-export function renderResumenes(totales, { vacio = false } = {}) {
-    document.querySelectorAll("[data-resumen]").forEach((bloque) => {
-        if (vacio) {
-            bloque.innerHTML = `<p class="resumen-nota">Agregá servicios para ver el total.</p>`;
-            return;
-        }
-
-        const { base, descuento, tramo, soporte, recargoPlazo, iva, totalAPagar, horas, semanas } = totales;
-        const detallado = bloque.dataset.resumen === "detallado";
-        const filas = [filaResumen("Servicios", formatearMoneda(base))];
-
-        if (descuento > 0) {
-            filas.push(filaResumen(tramo.etiqueta, `− ${formatearMoneda(descuento)}`, "resumen-fila-descuento"));
-        }
-
-        if (detallado) {
-            if (soporte > 0) {
-                filas.push(filaResumen("Plan de soporte", `+ ${formatearMoneda(soporte)}`));
-            }
-            if (recargoPlazo > 0) {
-                filas.push(filaResumen("Recargo por plazo", `+ ${formatearMoneda(recargoPlazo)}`));
-            }
-            filas.push(filaResumen("IVA", formatearMoneda(iva)));
-        }
-
-        filas.push('<div class="resumen-separador"></div>');
-        filas.push(`
-            <div class="resumen-total">
-                <span>Total</span>
-                <span>${formatearMoneda(totalAPagar)}</span>
-            </div>`);
-        filas.push(`<p class="resumen-nota">${horas} horas estimadas · entrega en ${semanas} semanas</p>`);
-
-        bloque.innerHTML = filas.join("");
-    });
-}
-
-// ------------------------------------------------------------
-//  Paso 2: plan y plazo
-// ------------------------------------------------------------
-
-function grupoOpciones(leyenda, nombreGrupo, opciones, seleccionado, soloLectura, describir) {
-    const items = opciones
-        .map((opcion) => `
-            <label class="opcion-item">
-                <input type="radio" name="${nombreGrupo}" value="${opcion.id}"
-                       ${opcion.id === seleccionado ? "checked" : ""} ${soloLectura ? "disabled" : ""}>
-                <span class="opcion-texto">
-                    <strong>${opcion.nombre}${describir(opcion)}</strong>
-                    <small>${opcion.descripcion}</small>
-                </span>
-            </label>`)
-        .join("");
-
+/** El cierre de todo resumen: separador y total. Estaba escrito tres veces. */
+function totalFinal(etiqueta, monto) {
     return `
-        <fieldset class="opcion-grupo">
-            <legend>${leyenda}</legend>
-            ${items}
-        </fieldset>`;
+        <div class="resumen-separador"></div>
+        <div class="resumen-total">
+            <span>${etiqueta}</span>
+            <span>${formatearMoneda(monto)}</span>
+        </div>`;
 }
 
-export function renderOpciones(planes, plazos, planId, plazoId, { soloLectura = false } = {}) {
-    const describirPlan = ({ multiplicador }) => multiplicador === 1
-        ? ""
-        : ` · +${formatearPorcentaje(multiplicador - 1)}`;
+/** El resumen corto que acompaña al presupuesto en el paso 1. */
+export function renderResumenes(totales, { vacio = false } = {}) {
+    const bloque = nodos.resumen;
 
-    const describirPlazo = ({ recargo, semanas }) => recargo === 0
-        ? ` · ${semanas} semanas`
-        : ` · ${semanas} semanas, +${formatearPorcentaje(recargo)}`;
+    if (vacio) {
+        bloque.innerHTML = `<p class="resumen-nota">Agregá servicios para ver el total.</p>`;
+        return;
+    }
 
-    nodos.opciones.innerHTML =
-        grupoOpciones("Plan de soporte", "plan", planes, planId, soloLectura, describirPlan) +
-        grupoOpciones("Plazo de entrega", "plazo", plazos, plazoId, soloLectura, describirPlazo);
+    const { base, descuento, tramo, totalAPagar, horas, semanas } = totales;
+
+    bloque.innerHTML = [
+        filaResumen("Servicios", formatearMoneda(base)),
+        descuento > 0
+            ? filaResumen(tramo.etiqueta, `− ${formatearMoneda(descuento)}`, "resumen-fila-descuento")
+            : "",
+        totalFinal("Total", totalAPagar),
+        `<p class="resumen-nota">${horas} horas estimadas · entrega en ${semanas} semanas</p>`
+    ].join("");
 }
 
 // ------------------------------------------------------------
@@ -614,51 +499,58 @@ export function mostrarErroresCliente(errores) {
 }
 
 // ------------------------------------------------------------
-//  Paso 4: revisión
+//  Paso 2: confirmación y pago
 // ------------------------------------------------------------
 
+/** La lista de ítems, con su <ul>. Antes el envoltorio estaba repetido. */
 function listaLineas(lineas) {
-    return lineas
+    const items = lineas
         .map(({ nombre, cantidad, unidad, unidadPlural, subtotal }) => `
             <li>
                 <span>${nombre} · ${cantidad} ${cantidad === 1 ? unidad : unidadPlural}</span>
                 <span>${formatearMoneda(subtotal)}</span>
             </li>`)
         .join("");
+
+    return `<ul class="comprobante-items">${items}</ul>`;
 }
 
-function bloqueTotales(totales) {
+/** Un grupo de radios armado desde el JSON. `describir` arma el sufijo de
+ *  cada opción, así la misma función sirve para cualquier lista. */
+function grupoOpciones(leyenda, nombreGrupo, opciones, seleccionado, describir) {
+    const items = opciones
+        .map((opcion) => `
+            <label class="opcion-item">
+                <input type="radio" name="${nombreGrupo}" value="${opcion.id}"
+                       ${opcion.id === seleccionado ? "checked" : ""}>
+                <span class="opcion-texto">
+                    <strong>${opcion.nombre}${describir(opcion)}</strong>
+                    <small>${opcion.descripcion}</small>
+                </span>
+            </label>`)
+        .join("");
+
     return `
-        ${filaResumen("Servicios", formatearMoneda(totales.base))}
-        ${totales.descuento > 0
-            ? filaResumen(totales.tramo.etiqueta, `− ${formatearMoneda(totales.descuento)}`, "resumen-fila-descuento")
-            : ""}
-        ${totales.soporte > 0 ? filaResumen("Plan de soporte", `+ ${formatearMoneda(totales.soporte)}`) : ""}
-        ${totales.recargoPlazo > 0 ? filaResumen("Recargo por plazo", `+ ${formatearMoneda(totales.recargoPlazo)}`) : ""}
-        ${filaResumen("Subtotal", formatearMoneda(totales.netoFinal))}
-        ${filaResumen(`IVA (${formatearPorcentaje(totales.tasaIva)})`, formatearMoneda(totales.iva))}
-        <div class="resumen-separador"></div>
-        <div class="resumen-total">
-            <span>Total</span>
-            <span>${formatearMoneda(totales.totalAPagar)}</span>
-        </div>`;
+        <fieldset class="opcion-grupo">
+            <legend>${leyenda}</legend>
+            ${items}
+        </fieldset>`;
 }
 
-export function renderRevision(lineas, totales, plan, plazo, cliente) {
+/**
+ * El resumen de lo que se está por contratar: servicios, datos de contacto y
+ * los totales antes del medio de pago.
+ */
+export function renderConfirmacion(lineas, totales, cliente) {
     const { nombre, email, empresa, comentarios } = cliente;
 
-    nodos.revision.innerHTML = `
+    nodos.confirmacionResumen.innerHTML = `
         <div class="revision-bloque">
             <h4>Servicios</h4>
-            <ul class="comprobante-items">${listaLineas(lineas)}</ul>
-        </div>
-
-        <div class="revision-bloque">
-            <h4>Condiciones</h4>
+            ${listaLineas(lineas)}
             <dl class="revision-datos">
-                <dt>Plan de soporte</dt><dd>${plan.nombre}</dd>
-                <dt>Plazo de entrega</dt><dd>${plazo.nombre} · ${plazo.semanas} semanas</dd>
                 <dt>Horas estimadas</dt><dd>${totales.horas} h</dd>
+                <dt>Entrega estimada</dt><dd>${totales.semanas} semanas</dd>
             </dl>
         </div>
 
@@ -670,77 +562,32 @@ export function renderRevision(lineas, totales, plan, plazo, cliente) {
                 <dt>Empresa</dt><dd>${escapar(empresa || "Particular")}</dd>
                 ${comentarios ? `<dt>Comentarios</dt><dd>${escapar(comentarios)}</dd>` : ""}
             </dl>
-        </div>
-
-        <div class="revision-bloque revision-totales">${bloqueTotales(totales)}</div>`;
+        </div>`;
 }
 
-// ------------------------------------------------------------
-//  Paso 5: pago
-// ------------------------------------------------------------
-
-export function renderPago(snapshot, mediosPago, medioPagoId, totalesConAjuste) {
-    const { numero, fecha, cliente, plan, plazo, lineas } = snapshot;
-
-    nodos.pagoDetalle.innerHTML = `
-        <div class="pago-cabecera">
-            <div>
-                <p class="pago-etiqueta">Cotización</p>
-                <p class="pago-numero">${numero}</p>
-            </div>
-            <div>
-                <p class="pago-etiqueta">Emitida</p>
-                <p class="pago-fecha">${formatearFecha(fecha)}</p>
-            </div>
-        </div>
-
-        <ul class="comprobante-items">${listaLineas(lineas)}</ul>
-
-        <dl class="revision-datos">
-            <dt>Plan</dt><dd>${plan.nombre}</dd>
-            <dt>Plazo</dt><dd>${plazo.nombre} · ${plazo.semanas} semanas</dd>
-            <dt>A nombre de</dt><dd>${escapar(cliente.empresa || cliente.nombre)}</dd>
-        </dl>`;
-
-    const ajuste = totalesConAjuste.ajustePago;
+/** Los medios de pago y el total definitivo, que depende del elegido. */
+export function renderPago(mediosPago, medioPagoId, totales) {
+    const ajuste = totales.ajustePago;
     const claseAjuste = ajuste >= 0 ? "pago-ajuste-positivo" : "pago-ajuste-negativo";
 
-    const opciones = mediosPago
-        .map((medio) => {
-            const etiquetaAjuste = medio.ajuste === 0
-                ? ""
-                : ` · ${medio.ajuste > 0 ? "+" : "−"}${formatearPorcentaje(medio.ajuste)}`;
+    const describirMedio = ({ ajuste: porcentaje }) => porcentaje === 0
+        ? ""
+        : ` · ${porcentaje > 0 ? "+" : "−"}${formatearPorcentaje(porcentaje)}`;
 
-            return `
-            <label class="opcion-item">
-                <input type="radio" name="medio-pago" value="${medio.id}"
-                       ${medio.id === medioPagoId ? "checked" : ""}>
-                <span class="opcion-texto">
-                    <strong>${medio.nombre}${etiquetaAjuste}</strong>
-                    <small>${medio.descripcion}</small>
-                </span>
-            </label>`;
-        })
-        .join("");
-
-    nodos.pagoMedios.innerHTML = `
-        <fieldset class="opcion-grupo">
-            <legend>Elegí cómo pagar</legend>
-            ${opciones}
-        </fieldset>
+    nodos.confirmacionPago.innerHTML = `
+        ${grupoOpciones("Elegí cómo pagar", "medio-pago", mediosPago, medioPagoId, describirMedio)}
 
         <div class="presupuesto-resumen pago-total">
-            ${filaResumen("Subtotal", formatearMoneda(snapshot.totales.neto))}
+            ${filaResumen("Servicios", formatearMoneda(totales.base))}
+            ${totales.descuento > 0
+                ? filaResumen(totales.tramo.etiqueta, `− ${formatearMoneda(totales.descuento)}`, "resumen-fila-descuento")
+                : ""}
             ${ajuste !== 0
                 ? filaResumen("Ajuste por medio de pago",
                     `${ajuste > 0 ? "+" : "−"} ${formatearMoneda(Math.abs(ajuste))}`, claseAjuste)
                 : ""}
-            ${filaResumen(`IVA (${formatearPorcentaje(totalesConAjuste.tasaIva)})`, formatearMoneda(totalesConAjuste.iva))}
-            <div class="resumen-separador"></div>
-            <div class="resumen-total">
-                <span>Total a pagar</span>
-                <span>${formatearMoneda(totalesConAjuste.totalAPagar)}</span>
-            </div>
+            ${filaResumen(`IVA (${formatearPorcentaje(totales.tasaIva)})`, formatearMoneda(totales.iva))}
+            ${totalFinal("Total a pagar", totales.totalAPagar)}
         </div>`;
 }
 
@@ -749,7 +596,7 @@ export function renderPago(snapshot, mediosPago, medioPagoId, totalesConAjuste) 
 // ------------------------------------------------------------
 
 export function renderExito(snapshot) {
-    const { numero, cliente, medioPago, totalPagado, fechaContratacion, plazo } = snapshot;
+    const { numero, cliente, medioPago, totalPagado, fechaContratacion, totales } = snapshot;
 
     nodos.exito.innerHTML = `
         <p class="exito-icono" aria-hidden="true">✓</p>
@@ -767,7 +614,7 @@ export function renderExito(snapshot) {
             <dt>Monto abonado</dt><dd>${formatearMoneda(totalPagado)}</dd>
             <dt>Medio de pago</dt><dd>${medioPago.nombre}</dd>
             <dt>Fecha</dt><dd>${formatearFecha(fechaContratacion)}</dd>
-            <dt>Entrega estimada</dt><dd>${plazo.semanas} semanas</dd>
+            <dt>Entrega estimada</dt><dd>${totales.semanas} semanas</dd>
         </dl>
 
         <button type="button" class="btn-borde" data-accion="comprobante" data-numero="${numero}">
@@ -779,9 +626,14 @@ export function renderExito(snapshot) {
 //  Comprobante
 // ------------------------------------------------------------
 
+/** Lo abonado, o el total si todavía no se pagó. Con ?? en lugar de === null,
+ *  que con un snapshot sin ese campo imprimía NaN. */
+function montoDe({ totales, totalPagado }) {
+    return totalPagado ?? totales.totalAPagar;
+}
+
 function comprobanteHtml(snapshot) {
-    const { numero, fecha, cliente, lineas, plan, plazo, medioPago, totales, totalPagado, estado } = snapshot;
-    const montoFinal = totalPagado === null ? totales.totalAPagar : totalPagado;
+    const { numero, fecha, cliente, lineas, medioPago, totales, estado } = snapshot;
 
     return `
         <div class="comprobante">
@@ -791,24 +643,18 @@ function comprobanteHtml(snapshot) {
                 <dt>Estado</dt><dd>${etiquetasEstado[estado]}</dd>
                 <dt>Cliente</dt><dd>${escapar(cliente.nombre)}</dd>
                 <dt>Empresa</dt><dd>${escapar(cliente.empresa || "Particular")}</dd>
-                <dt>Plan</dt><dd>${plan.nombre}</dd>
-                <dt>Plazo</dt><dd>${plazo.nombre} · ${plazo.semanas} semanas</dd>
+                <dt>Entrega</dt><dd>${totales.semanas} semanas</dd>
                 ${medioPago ? `<dt>Medio de pago</dt><dd>${medioPago.nombre}</dd>` : ""}
             </dl>
-            <ul class="comprobante-items">${listaLineas(lineas)}</ul>
+            ${listaLineas(lineas)}
             <div class="comprobante-total">
                 <span>Total</span>
-                <span>${formatearMoneda(montoFinal)}</span>
+                <span>${formatearMoneda(montoDe(snapshot))}</span>
             </div>
         </div>`;
 }
 
 export function mostrarComprobante(snapshot) {
-    if (typeof Swal === "undefined") {
-        modalPropio(`Comprobante ${snapshot.numero}`, comprobanteHtml(snapshot), "Cerrar", false);
-        return;
-    }
-
     Swal.fire({
         title: `Comprobante ${snapshot.numero}`,
         html: comprobanteHtml(snapshot),
@@ -836,9 +682,8 @@ export function renderHistorial(cotizaciones, cotizacionActivaId) {
     nodos.historialLista.innerHTML = [...cotizaciones]
         .reverse()
         .map((cotizacion) => {
-            const { numero, fecha, estado, cliente, lineas, totales, totalPagado } = cotizacion;
+            const { numero, fecha, estado, cliente, lineas } = cotizacion;
             const esActiva = numero === cotizacionActivaId;
-            const monto = totalPagado === null ? totales.totalAPagar : totalPagado;
 
             return `
             <article class="historial-tarjeta${esActiva ? " historial-tarjeta-activa" : ""}">
@@ -853,7 +698,7 @@ export function renderHistorial(cotizaciones, cotizacionActivaId) {
                 </ul>
                 <div class="historial-total">
                     <span>${estado === ESTADOS.CONTRATADA ? "Abonado" : "Total"}</span>
-                    <span>${formatearMoneda(monto)}</span>
+                    <span>${formatearMoneda(montoDe(cotizacion))}</span>
                 </div>
                 <div class="historial-acciones">
                     <button type="button" class="btn-ver-comprobante" data-accion="comprobante" data-numero="${numero}">

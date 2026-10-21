@@ -9,8 +9,7 @@ import * as interfaz from "./interfaz.js";
 
 const CATEGORIA_TODAS = "Todas";
 const PASO_INICIAL = 1;
-const PASO_REVISION = 4;
-const PASO_PAGO = 5;
+const PASO_CONFIRMAR = 2;
 const DEMORA_PAGO = 1400;
 const PATRON_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -26,8 +25,6 @@ const estado = {
     items: [],
     categoria: CATEGORIA_TODAS,
     busqueda: "",
-    planId: "",
-    plazoId: "",
     medioPagoId: "",
     cliente: datos.clienteVacio(),
     paso: PASO_INICIAL,
@@ -60,14 +57,6 @@ function filtrarServicios() {
 
 function buscarServicio(id) {
     return estado.servicios.find((servicio) => servicio.id === id);
-}
-
-function buscarPlan() {
-    return estado.configuracion.planesSoporte.find((plan) => plan.id === estado.planId);
-}
-
-function buscarPlazo() {
-    return estado.configuracion.plazos.find((plazo) => plazo.id === estado.plazoId);
 }
 
 function buscarMedioPago() {
@@ -109,8 +98,6 @@ function hidratarLineas() {
 function totalesDe(lineas) {
     return datos.calcularTotales({
         lineas,
-        plan: buscarPlan(),
-        plazo: buscarPlazo(),
         tramos: estado.configuracion.tramosDescuento,
         iva: estado.configuracion.iva
     });
@@ -120,6 +107,14 @@ const esEditable = () => estado.fase === datos.FASES.BORRADOR;
 
 /** El último paso sale del largo de la lista del JSON, no de un número suelto acá. */
 const ultimoPaso = () => estado.configuracion.pasos.length;
+
+/**
+ * Con la cotización ya pagada no se vuelve atrás: los pasos anteriores quedan
+ * congelados y el usuario no tiene forma de saber por qué nada responde.
+ * Mejor no dejarlo entrar y que use "Hacer una cotización nueva".
+ */
+const primerPasoAlcanzable = () =>
+    (estado.fase === datos.FASES.PAGADA ? ultimoPaso() : PASO_INICIAL);
 
 // ------------------------------------------------------------
 //  Validación y navegación
@@ -152,24 +147,10 @@ function motivoBloqueo(numero) {
             : "";
     }
 
-    if (numero === 2) {
-        return buscarPlan() && buscarPlazo()
+    if (numero === PASO_CONFIRMAR) {
+        return estado.fase === datos.FASES.PAGADA
             ? ""
-            : "Elegí un plan de soporte y un plazo de entrega.";
-    }
-
-    if (numero === 3) {
-        return Object.keys(validarCliente()).length === 0
-            ? ""
-            : "Completá tu nombre y un correo válido.";
-    }
-
-    if (numero === 4) {
-        return estado.fase === datos.FASES.BORRADOR ? "Confirmá la cotización para pasar al pago." : "";
-    }
-
-    if (numero === PASO_PAGO) {
-        return estado.fase === datos.FASES.PAGADA ? "" : "Elegí un medio de pago y confirmá.";
+            : "Completá tus datos, elegí cómo pagar y confirmá.";
     }
 
     return "";
@@ -196,7 +177,8 @@ function pasoMaximoAlcanzable() {
  * en Continuar se salteaba un paso.
  */
 function irAPaso(numero) {
-    const destino = Math.min(Math.max(numero, PASO_INICIAL), ultimoPaso());
+    const piso = primerPasoAlcanzable();
+    const destino = Math.min(Math.max(numero, piso), ultimoPaso());
     const tope = pasoMaximoAlcanzable();
 
     if (destino > tope) {
@@ -309,111 +291,66 @@ async function vaciarPresupuesto() {
 //  Confirmación, pago y anulación
 // ------------------------------------------------------------
 
-function armarSnapshot() {
-    const lineas = hidratarLineas();
-    const totales = totalesDe(lineas);
-    const { nombre, multiplicador } = buscarPlan();
-    const plazo = buscarPlazo();
+/** La foto de lo contratado. Guarda los montos, no los ids: si mañana cambio
+ *  la lista de precios, un comprobante ya emitido no tiene que moverse. */
+function armarSnapshot(medioPago, totales) {
+    const ahora = new Date().toISOString();
 
     return {
         numero: datos.siguienteNumero(estado.historial),
-        fecha: new Date().toISOString(),
-        estado: datos.ESTADOS.PENDIENTE,
-        fechaContratacion: null,
+        fecha: ahora,
+        estado: datos.ESTADOS.CONTRATADA,
+        fechaContratacion: ahora,
         cliente: { ...estado.cliente },
-        lineas,
-        plan: { id: estado.planId, nombre, multiplicador },
-        plazo: { id: plazo.id, nombre: plazo.nombre, recargo: plazo.recargo, semanas: plazo.semanas },
-        medioPago: null,
+        lineas: hidratarLineas(),
+        medioPago: { id: medioPago.id, nombre: medioPago.nombre, ajuste: medioPago.ajuste },
         totales,
-        totalPagado: null
+        totalPagado: totales.totalAPagar
     };
 }
 
-async function confirmarCotizacion() {
-    if (estado.enviando || !esEditable()) {
-        return;
-    }
-
-    // Si todavía no se llega a la revisión, falta algo en un paso anterior:
-    // lo mando ahí en vez de confirmar a medias. No necesito mirar el motivo,
-    // que el tope sea menor ya implica que hay uno.
-    const tope = pasoMaximoAlcanzable();
-
-    if (tope < PASO_REVISION) {
-        irAPaso(tope);
-        return;
-    }
-
-    const totales = totalesDe(hidratarLineas());
-    const confirmado = await interfaz.confirmar(
-        "¿Confirmar la cotización?",
-        `Vas a emitir una cotización por <strong>${interfaz.formatearMoneda(totales.totalAPagar)}</strong>.
-         Después vas a poder elegir el medio de pago.`,
-        "Confirmar"
-    );
-
-    if (!confirmado) {
-        return;
-    }
-
-    estado.enviando = true;
-    interfaz.ocupado("btn-confirmar", true, "Emitiendo…");
-
-    try {
-        const snapshot = datos.guardarCotizacion(armarSnapshot());
-
-        if (!snapshot) {
-            interfaz.mostrarAvisoPaso(4, "No pudimos guardar la cotización. Revisá que el navegador permita almacenamiento y volvé a intentar.");
-            interfaz.notificar("error", "No se pudo guardar la cotización.");
-            return;
-        }
-
-        estado.historial = datos.leerHistorial();
-        estado.cotizacionActivaId = snapshot.numero;
-        estado.fase = datos.FASES.CONFIRMADA;
-
-        interfaz.notificar("exito", `Cotización ${snapshot.numero} emitida.`);
-        irAPaso(PASO_PAGO);
-    } finally {
-        estado.enviando = false;
-        interfaz.ocupado("btn-confirmar", false);
-    }
-}
-
-/** No hay pasarela de pago de verdad: simulo la demora para que se vea el flujo. */
+/** El "procesamiento" del pago: una espera simulada para que se vea el flujo. */
 function procesarPago() {
     return new Promise((resolver) => {
         setTimeout(resolver, DEMORA_PAGO);
     });
 }
 
-async function pagar() {
-    if (estado.enviando) {
+/**
+ * Confirmar y pagar son una sola acción: la cotización nace contratada.
+ * Antes eran dos pasos con un estado "pendiente de pago" en el medio, y ese
+ * hueco arrastraba el congelado del asistente y el flujo de anular para editar.
+ */
+async function confirmarYPagar() {
+    if (estado.enviando || !esEditable()) {
         return;
     }
 
-    const cotizacion = buscarCotizacionActiva();
+    estado.cliente = interfaz.leerFormularioCliente();
+    const errores = validarCliente();
+
+    interfaz.mostrarErroresCliente(errores);
+
+    if (Object.keys(errores).length > 0) {
+        interfaz.mostrarAvisoPaso(PASO_CONFIRMAR, "Revisá los campos marcados para continuar.");
+        return;
+    }
+
     const medioPago = buscarMedioPago();
 
-    if (!cotizacion || cotizacion.estado !== datos.ESTADOS.PENDIENTE) {
-        interfaz.mostrarAvisoPaso(PASO_PAGO, "La cotización ya no está disponible. Volvé a armarla.");
-        volverABorrador();
-        return;
-    }
-
     if (!medioPago) {
-        interfaz.mostrarAvisoPaso(PASO_PAGO, "Elegí un medio de pago para continuar.");
-        interfaz.notificar("error", "Elegí un medio de pago para continuar.");
+        interfaz.mostrarAvisoPaso(PASO_CONFIRMAR, "Elegí un medio de pago para continuar.");
         return;
     }
 
-    const totales = datos.aplicarMedioPago(cotizacion.totales, medioPago);
+    interfaz.mostrarAvisoPaso(PASO_CONFIRMAR, "");
+
+    const totales = datos.aplicarMedioPago(totalesDe(hidratarLineas()), medioPago);
 
     const confirmado = await interfaz.confirmar(
-        "Confirmar el pago del servicio",
-        interfaz.cuerpoConfirmacionPago(cotizacion.numero, totales.totalAPagar, medioPago.nombre),
-        "Confirmar el pago"
+        "Confirmar la contratación",
+        interfaz.cuerpoConfirmacionPago(totales.totalAPagar, medioPago.nombre),
+        "Confirmar y pagar"
     );
 
     if (!confirmado) {
@@ -421,36 +358,31 @@ async function pagar() {
     }
 
     estado.enviando = true;
-    interfaz.ocupado("btn-pagar", true, "Procesando…");
+    interfaz.ocupado("btn-confirmar", true, "Procesando…");
     interfaz.procesando(true);
 
     try {
         await procesarPago();
 
-        // Guardo el cambio en la cotización antes de mover el paso. Si justo
-        // acá se recarga la página, queda pendiente y se puede retomar.
-        const registrada = datos.modificarCotizacion(cotizacion.numero, {
-            estado: datos.ESTADOS.CONTRATADA,
-            fechaContratacion: new Date().toISOString(),
-            medioPago: { id: medioPago.id, nombre: medioPago.nombre, ajuste: medioPago.ajuste },
-            totalPagado: totales.totalAPagar
-        });
+        const snapshot = datos.guardarCotizacion(armarSnapshot(medioPago, totales));
 
-        if (!registrada) {
-            interfaz.mostrarAvisoPaso(PASO_PAGO, "No pudimos registrar el pago. La cotización sigue pendiente, podés reintentar.");
-            interfaz.notificar("error", "No se pudo registrar el pago.");
+        if (!snapshot) {
+            interfaz.mostrarAvisoPaso(PASO_CONFIRMAR,
+                "No pudimos guardar la contratación. Revisá que el navegador permita almacenamiento y volvé a intentar.");
+            interfaz.notificar("error", "No se pudo guardar la contratación.");
             return;
         }
 
         estado.historial = datos.leerHistorial();
+        estado.cotizacionActivaId = snapshot.numero;
         estado.fase = datos.FASES.PAGADA;
 
-        interfaz.notificar("exito", "¡Pago registrado! El servicio quedó contratado.");
+        interfaz.notificar("exito", `¡Listo! Cotización ${snapshot.numero} contratada.`);
         irAPaso(ultimoPaso());
     } finally {
         estado.enviando = false;
         interfaz.procesando(false);
-        interfaz.ocupado("btn-pagar", false);
+        interfaz.ocupado("btn-confirmar", false);
     }
 }
 
@@ -481,30 +413,10 @@ function anularCotizacion(numero) {
     actualizar();
 }
 
-async function editarTrasConfirmar() {
-    const cotizacion = buscarCotizacionActiva();
-
-    if (!cotizacion) {
-        volverABorrador();
-        return;
-    }
-
-    const confirmado = await interfaz.confirmar(
-        "¿Anular y volver a editar?",
-        `La cotización <strong>${cotizacion.numero}</strong> va a quedar anulada y vas a tener
-         que confirmarla de nuevo con los cambios.`,
-        "Anular y editar"
-    );
-
-    if (confirmado) {
-        anularCotizacion(cotizacion.numero);
-    }
-}
-
 async function cancelarCotizacion(numero) {
     const cotizacion = estado.historial.find((candidata) => candidata.numero === numero);
 
-    if (!cotizacion || cotizacion.estado !== datos.ESTADOS.PENDIENTE) {
+    if (!cotizacion || cotizacion.estado !== datos.ESTADOS.CONTRATADA) {
         return;
     }
 
@@ -512,8 +424,8 @@ async function cancelarCotizacion(numero) {
 
     const confirmado = await interfaz.confirmar(
         "¿Cancelar la cotización?",
-        `<strong>${numero}</strong> va a quedar anulada y ya no se va a poder pagar.
-         ${esLaEnCurso ? "El presupuesto vuelve a quedar editable desde el paso 1." : ""}`,
+        `<strong>${numero}</strong> va a quedar anulada.
+         ${esLaEnCurso ? "El simulador vuelve a quedar libre para armar otra." : ""}`,
         "Sí, cancelar"
     );
 
@@ -536,8 +448,6 @@ function reiniciarBorrador() {
     estado.cotizacionActivaId = null;
     estado.categoria = CATEGORIA_TODAS;
     estado.busqueda = "";
-    estado.planId = estado.configuracion.planesSoporte[0].id;
-    estado.plazoId = estado.configuracion.plazos[0].id;
 
     interfaz.pintarFormularioCliente(estado.cliente);
     interfaz.mostrarErroresCliente({});
@@ -612,8 +522,6 @@ async function reiniciarTodo() {
 function persistir() {
     datos.guardarBorrador({
         items: estado.items,
-        planId: estado.planId,
-        plazoId: estado.plazoId,
         medioPagoId: estado.medioPagoId,
         cliente: estado.cliente,
         paso: estado.paso,
@@ -634,38 +542,31 @@ function actualizar() {
 
     const soloLectura = !esEditable();
     const lineas = hidratarLineas();
-    const { planesSoporte, plazos, mediosPago } = estado.configuracion;
+    const { mediosPago } = estado.configuracion;
 
-    interfaz.renderBarraPasos(estado.configuracion.pasos, estado.paso, tope);
+    interfaz.renderBarraPasos(estado.configuracion.pasos, estado.paso, tope, primerPasoAlcanzable());
     interfaz.mostrarPaso(estado.configuracion.pasos, estado.paso);
-    interfaz.mostrarBannerCongelado(estado.fase, estado.cotizacionActivaId);
-
     interfaz.renderFiltros(obtenerCategorias(), estado.categoria);
     interfaz.renderCatalogo(filtrarServicios(), estado.items.map((item) => item.id), { soloLectura });
     interfaz.renderPresupuesto(lineas, { soloLectura });
-    interfaz.renderOpciones(planesSoporte, plazos, estado.planId, estado.plazoId, { soloLectura });
     interfaz.bloquearEdicion(soloLectura);
 
     const totales = totalesDe(lineas);
     interfaz.renderResumenes(totales, { vacio: lineas.length === 0 });
 
+    // La confirmación se dibuja siempre que haya algo que confirmar: sin el
+    // estado intermedio de "emitida pero sin pagar", lee del estado vivo igual
+    // que el resto y no hace falta distinguir de dónde vienen los datos.
     if (lineas.length > 0) {
-        interfaz.renderRevision(lineas, totales, buscarPlan(), buscarPlazo(), estado.cliente);
+        interfaz.renderConfirmacion(lineas, totales, estado.cliente);
+        interfaz.renderPago(mediosPago, estado.medioPagoId,
+            datos.aplicarMedioPago(totales, buscarMedioPago()));
     }
 
-    const cotizacion = buscarCotizacionActiva();
+    const contratada = buscarCotizacionActiva();
 
-    if (cotizacion) {
-        interfaz.renderPago(
-            cotizacion,
-            mediosPago,
-            estado.medioPagoId,
-            datos.aplicarMedioPago(cotizacion.totales, buscarMedioPago())
-        );
-
-        if (cotizacion.estado === datos.ESTADOS.CONTRATADA) {
-            interfaz.renderExito(cotizacion);
-        }
+    if (contratada) {
+        interfaz.renderExito(contratada);
     }
 
     interfaz.renderHistorial(estado.historial, estado.cotizacionActivaId);
@@ -680,8 +581,7 @@ const ACCIONES = {
     sumar: ({ id }) => cambiarCantidad(id, 1),
     restar: ({ id }) => cambiarCantidad(id, -1),
     quitar: ({ id }) => quitarServicio(id),
-    confirmar: () => confirmarCotizacion(),
-    pagar: () => pagar(),
+    confirmar: () => confirmarYPagar(),
     nueva: () => nuevaCotizacion(),
     comprobante: ({ numero }) => verComprobante(numero),
     "cancelar-cotizacion": ({ numero }) => cancelarCotizacion(numero),
@@ -722,19 +622,15 @@ function manejarClic(evento) {
 function manejarCambio(evento) {
     const { name, value } = evento.target;
 
-    if (name === "plan") {
-        estado.planId = value;
-    } else if (name === "plazo") {
-        estado.plazoId = value;
-    } else if (name === "medio-pago") {
-        estado.medioPagoId = value;
-        interfaz.mostrarAvisoPaso(PASO_PAGO, "");
-    } else {
+    if (name !== "medio-pago") {
         return;
     }
 
+    estado.medioPagoId = value;
+    interfaz.mostrarAvisoPaso(PASO_CONFIRMAR, "");
     actualizar();
 }
+
 
 function manejarEntrada(evento) {
     const { id, value } = evento.target;
@@ -782,7 +678,6 @@ function registrarEventos() {
 
     document.getElementById("form-cliente").addEventListener("submit", manejarEnvioCliente);
     document.getElementById("btn-vaciar-presupuesto").addEventListener("click", vaciarPresupuesto);
-    document.getElementById("btn-editar-cotizacion").addEventListener("click", editarTrasConfirmar);
     document.getElementById("btn-reiniciar-todo").addEventListener("click", reiniciarTodo);
     document.getElementById("btn-reintentar").addEventListener("click", iniciar);
 }

@@ -1,7 +1,6 @@
 {
   "moneda": "ARS",
   "estadosCotizacion": {
-    "pendiente-pago": "Pendiente de pago",
     "contratada": "Contratada",
     "anulada": "Anulada"
   },
@@ -13,66 +12,11 @@
     },
     {
       "numero": 2,
-      "titulo": "Plan y plazo"
+      "titulo": "Confirmar"
     },
     {
       "numero": 3,
-      "titulo": "Tus datos"
-    },
-    {
-      "numero": 4,
-      "titulo": "Revisión"
-    },
-    {
-      "numero": 5,
-      "titulo": "Pago"
-    },
-    {
-      "numero": 6,
       "titulo": "Listo"
-    }
-  ],
-  "planesSoporte": [
-    {
-      "id": "sin-soporte",
-      "nombre": "Sin soporte",
-      "multiplicador": 1,
-      "descripcion": "Entregamos el proyecto terminado. Las correcciones posteriores se cotizan aparte."
-    },
-    {
-      "id": "basico",
-      "nombre": "Soporte básico",
-      "multiplicador": 1.1,
-      "descripcion": "Tres meses de correcciones y actualizaciones de seguridad, con respuesta en 48 horas."
-    },
-    {
-      "id": "premium",
-      "nombre": "Soporte premium",
-      "multiplicador": 1.25,
-      "descripcion": "Doce meses de monitoreo, mejoras y soporte prioritario, con respuesta en 4 horas."
-    }
-  ],
-  "plazos": [
-    {
-      "id": "estandar",
-      "nombre": "Estándar",
-      "recargo": 0,
-      "semanas": 12,
-      "descripcion": "Nuestro ritmo habitual de trabajo, sin costo adicional."
-    },
-    {
-      "id": "acelerado",
-      "nombre": "Acelerado",
-      "recargo": 0.15,
-      "semanas": 8,
-      "descripcion": "Sumamos una persona al equipo para acortar los tiempos."
-    },
-    {
-      "id": "express",
-      "nombre": "Express",
-      "recargo": 0.3,
-      "semanas": 4,
-      "descripcion": "Equipo dedicado en exclusiva y prioridad máxima sobre el resto de los proyectos."
     }
   ],
   "tramosDescuento": [

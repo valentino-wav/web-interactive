@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Cotizá tu proyecto de software con Fennec. Elegí servicios, plan de soporte y plazo de entrega, y obtené un presupuesto detallado al instante.">
+    <meta name="description" content="Cotizá tu proyecto de software con Fennec. Elegí los servicios que necesitás y obtené un presupuesto detallado al instante.">
     <title>Fennec — Cotizá tu proyecto de software</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,8 +54,8 @@
                 Transformamos ideas en <span class="resaltado">software</span> que impulsa negocios.
             </h1>
             <p class="hero-sub">
-                Armá tu presupuesto en minutos: elegí los servicios que necesitás,
-                definí el plan de soporte y el plazo, y mirá el total en tiempo real.
+                Armá tu presupuesto en minutos: elegí los servicios que necesitás
+                y mirá el total en tiempo real.
             </p>
             <div class="hero-acciones">
                 <a href="#cotizador" class="btn-lima">Cotizá tu proyecto</a>
@@ -90,7 +90,7 @@
 
             <h2 class="cotizador-titulo">Cotizador de proyectos</h2>
             <p class="cotizador-intro">
-                Un presupuesto orientativo paso a paso. Los precios son de referencia
+                Un presupuesto orientativo en tres pasos. Los precios son de referencia
                 y se confirman después de una reunión de relevamiento.
             </p>
 
@@ -115,12 +115,6 @@
                     <ol class="paso-barra" id="paso-barra"></ol>
                 </nav>
 
-                <!-- Solo aparece cuando hay una cotización confirmada que todavía se puede anular -->
-                <div class="banner-congelado" id="banner-congelado" hidden>
-                    <span id="banner-congelado-texto"></span>
-                    <button type="button" class="enlace-sutil" id="btn-editar-cotizacion">Editar</button>
-                </div>
-
                 <!-- ============ PASO 1: servicios ============ -->
                 <section class="paso-panel" id="paso-panel-1" aria-labelledby="titulo-paso-1" hidden>
                     <h3 class="cotizador-paso" id="titulo-paso-1"><span>1</span> Elegí los servicios</h3>
@@ -141,7 +135,7 @@
                         <aside class="cotizador-panel">
                             <h4 class="panel-titulo">Tu presupuesto</h4>
                             <div class="presupuesto-lista" id="presupuesto-lista"></div>
-                            <div class="presupuesto-resumen" data-resumen="compacto" aria-live="polite"></div>
+                            <div class="presupuesto-resumen" id="presupuesto-resumen" aria-live="polite"></div>
 
                             <p class="paso-aviso" id="aviso-paso-1" role="status" hidden></p>
 
@@ -157,30 +151,9 @@
                     </div>
                 </section>
 
-                <!-- ============ PASO 2: plan y plazo ============ -->
+                <!-- ============ PASO 2: datos, resumen y pago ============ -->
                 <section class="paso-panel" id="paso-panel-2" aria-labelledby="titulo-paso-2" hidden>
-                    <h3 class="cotizador-paso" id="titulo-paso-2"><span>2</span> Plan de soporte y plazo</h3>
-
-                    <div class="cotizador-layout">
-                        <div class="presupuesto-opciones" id="presupuesto-opciones"></div>
-
-                        <aside class="cotizador-panel">
-                            <h4 class="panel-titulo">Resumen</h4>
-                            <div class="presupuesto-resumen" data-resumen="detallado" aria-live="polite"></div>
-                        </aside>
-                    </div>
-
-                    <p class="paso-aviso" id="aviso-paso-2" role="status" hidden></p>
-
-                    <div class="paso-navegacion">
-                        <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
-                        <button type="button" class="btn-lima" data-navegar="siguiente">Continuar</button>
-                    </div>
-                </section>
-
-                <!-- ============ PASO 3: datos del cliente ============ -->
-                <section class="paso-panel" id="paso-panel-3" aria-labelledby="titulo-paso-3" hidden>
-                    <h3 class="cotizador-paso" id="titulo-paso-3"><span>3</span> Tus datos</h3>
+                    <h3 class="cotizador-paso" id="titulo-paso-2"><span>2</span> Confirmá tu pedido</h3>
 
                     <form class="cliente-form" id="form-cliente" novalidate>
                         <div class="form-fila">
@@ -210,52 +183,26 @@
                                       placeholder="Plazos, integraciones, referencias…" aria-describedby="error-comentarios"></textarea>
                             <p class="form-error" id="error-comentarios" hidden></p>
                         </div>
-
-                        <p class="paso-aviso" id="aviso-paso-3" role="status" hidden></p>
-
-                        <div class="paso-navegacion">
-                            <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
-                            <button type="submit" class="btn-lima">Continuar</button>
-                        </div>
                     </form>
-                </section>
 
-                <!-- ============ PASO 4: revisión ============ -->
-                <section class="paso-panel" id="paso-panel-4" aria-labelledby="titulo-paso-4" hidden>
-                    <h3 class="cotizador-paso" id="titulo-paso-4"><span>4</span> Revisá tu cotización</h3>
+                    <div class="confirmacion">
+                        <div class="revision" id="confirmacion-resumen"></div>
+                        <div class="pago-medios" id="confirmacion-pago"></div>
+                    </div>
 
-                    <div class="revision" id="revision-detalle"></div>
-
-                    <p class="paso-aviso" id="aviso-paso-4" role="status" hidden></p>
+                    <p class="paso-aviso" id="aviso-paso-2" role="status" hidden></p>
 
                     <div class="paso-navegacion">
                         <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
                         <button type="button" class="btn-lima" id="btn-confirmar" data-accion="confirmar">
-                            Confirmar cotización
+                            Confirmar y pagar
                         </button>
                     </div>
                 </section>
 
-                <!-- ============ PASO 5: pago ============ -->
-                <section class="paso-panel" id="paso-panel-5" aria-labelledby="titulo-paso-5" hidden>
-                    <h3 class="cotizador-paso" id="titulo-paso-5"><span>5</span> Pago</h3>
-
-                    <div class="pago-detalle" id="pago-detalle"></div>
-                    <div class="pago-medios" id="pago-medios"></div>
-
-                    <p class="paso-aviso" id="aviso-paso-5" role="status" hidden></p>
-
-                    <div class="paso-navegacion">
-                        <span></span>
-                        <button type="button" class="btn-lima" id="btn-pagar" data-accion="pagar">
-                            Pagar y contratar
-                        </button>
-                    </div>
-                </section>
-
-                <!-- ============ PASO 6: contratado ============ -->
-                <section class="paso-panel" id="paso-panel-6" aria-labelledby="titulo-paso-6" hidden>
-                    <h3 class="visualmente-oculto" id="titulo-paso-6">Servicio contratado</h3>
+                <!-- ============ PASO 3: contratado ============ -->
+                <section class="paso-panel" id="paso-panel-3" aria-labelledby="titulo-paso-3" hidden>
+                    <h3 class="visualmente-oculto" id="titulo-paso-3">Servicio contratado</h3>
                     <div class="exito-panel" id="exito-detalle"></div>
 
                     <div class="paso-navegacion paso-navegacion-centrada">
