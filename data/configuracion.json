@@ -1,0 +1,73 @@
+{
+  "moneda": "ARS",
+  "iva": 0.21,
+  "planesSoporte": [
+    {
+      "id": "sin-soporte",
+      "nombre": "Sin soporte",
+      "multiplicador": 1,
+      "descripcion": "Entregamos el proyecto terminado. Las correcciones posteriores se cotizan aparte."
+    },
+    {
+      "id": "basico",
+      "nombre": "Soporte básico",
+      "multiplicador": 1.1,
+      "descripcion": "Tres meses de correcciones y actualizaciones de seguridad, con respuesta en 48 horas."
+    },
+    {
+      "id": "premium",
+      "nombre": "Soporte premium",
+      "multiplicador": 1.25,
+      "descripcion": "Doce meses de monitoreo, mejoras y soporte prioritario, con respuesta en 4 horas."
+    }
+  ],
+  "plazos": [
+    {
+      "id": "estandar",
+      "nombre": "Estándar",
+      "recargo": 0,
+      "semanas": 12,
+      "descripcion": "Nuestro ritmo habitual de trabajo, sin costo adicional."
+    },
+    {
+      "id": "acelerado",
+      "nombre": "Acelerado",
+      "recargo": 0.15,
+      "semanas": 8,
+      "descripcion": "Sumamos una persona al equipo para acortar los tiempos."
+    },
+    {
+      "id": "express",
+      "nombre": "Express",
+      "recargo": 0.3,
+      "semanas": 4,
+      "descripcion": "Equipo dedicado en exclusiva y prioridad máxima sobre el resto de los proyectos."
+    }
+  ],
+  "tramosDescuento": [
+    { "desde": 0, "porcentaje": 0, "etiqueta": "Sin descuento por volumen" },
+    { "desde": 1000000, "porcentaje": 0.05, "etiqueta": "5% por volumen" },
+    { "desde": 2500000, "porcentaje": 0.1, "etiqueta": "10% por volumen" },
+    { "desde": 5000000, "porcentaje": 0.15, "etiqueta": "15% por volumen" }
+  ],
+  "mediosPago": [
+    {
+      "id": "transferencia",
+      "nombre": "Transferencia bancaria",
+      "ajuste": -0.05,
+      "descripcion": "5% de descuento por pago directo. Te enviamos los datos de la cuenta al confirmar."
+    },
+    {
+      "id": "mercado-pago",
+      "nombre": "Mercado Pago",
+      "ajuste": 0,
+      "descripcion": "Sin costo adicional. Acreditación inmediata."
+    },
+    {
+      "id": "tarjeta",
+      "nombre": "Tarjeta de crédito",
+      "ajuste": 0.08,
+      "descripcion": "Hasta 3 cuotas. 8% de recargo financiero."
+    }
+  ]
+}

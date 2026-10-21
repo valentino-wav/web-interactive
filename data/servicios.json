@@ -1,0 +1,90 @@
+[
+  {
+    "id": "desarrollo-web",
+    "nombre": "Desarrollo Web",
+    "categoria": "Web",
+    "descripcion": "Sitios institucionales, landing pages y aplicaciones web rápidas, seguras y optimizadas para todo tipo de dispositivos.",
+    "precioBase": 450000,
+    "horas": 60,
+    "unidad": "proyecto",
+    "unidadPlural": "proyectos",
+    "maxCantidad": 3
+  },
+  {
+    "id": "ecommerce",
+    "nombre": "E-commerce",
+    "categoria": "Web",
+    "descripcion": "Tiendas online con pasarelas de pago, gestión de productos y experiencias de compra optimizadas.",
+    "precioBase": 1200000,
+    "horas": 160,
+    "unidad": "tienda",
+    "unidadPlural": "tiendas",
+    "maxCantidad": 2
+  },
+  {
+    "id": "apps-moviles",
+    "nombre": "Aplicaciones Móviles",
+    "categoria": "Móvil",
+    "descripcion": "Apps para Android e iOS con interfaces intuitivas y un rendimiento de primer nivel.",
+    "precioBase": 1800000,
+    "horas": 240,
+    "unidad": "app",
+    "unidadPlural": "apps",
+    "maxCantidad": 2
+  },
+  {
+    "id": "backend-apis",
+    "nombre": "Desarrollo Backend y APIs",
+    "categoria": "Backend",
+    "descripcion": "Arquitecturas robustas y escalables, integrando bases de datos, servicios externos y APIs personalizadas.",
+    "precioBase": 900000,
+    "horas": 120,
+    "unidad": "módulo",
+    "unidadPlural": "módulos",
+    "maxCantidad": 6
+  },
+  {
+    "id": "automatizacion-ia",
+    "nombre": "Automatización e IA",
+    "categoria": "Automatización",
+    "descripcion": "Soluciones que automatizan tareas repetitivas e incorporan IA para mejorar la productividad y la toma de decisiones.",
+    "precioBase": 700000,
+    "horas": 90,
+    "unidad": "automatización",
+    "unidadPlural": "automatizaciones",
+    "maxCantidad": 5
+  },
+  {
+    "id": "diseno-ui-ux",
+    "nombre": "Diseño UI/UX",
+    "categoria": "Diseño",
+    "descripcion": "Interfaces modernas, accesibles y centradas en el usuario para ofrecer experiencias claras y atractivas.",
+    "precioBase": 380000,
+    "horas": 50,
+    "unidad": "set de pantallas",
+    "unidadPlural": "sets de pantallas",
+    "maxCantidad": 6
+  },
+  {
+    "id": "testing-qa",
+    "nombre": "Testing y Control de Calidad",
+    "categoria": "Soporte",
+    "descripcion": "Pruebas funcionales, de rendimiento y de usabilidad para garantizar productos confiables y listos para producción.",
+    "precioBase": 260000,
+    "horas": 35,
+    "unidad": "ciclo de testing",
+    "unidadPlural": "ciclos de testing",
+    "maxCantidad": 6
+  },
+  {
+    "id": "mantenimiento",
+    "nombre": "Mantenimiento y Soporte",
+    "categoria": "Soporte",
+    "descripcion": "Actualizaciones, monitoreo y soporte continuo para mantener tus sistemas seguros y funcionando correctamente.",
+    "precioBase": 150000,
+    "horas": 20,
+    "unidad": "mes",
+    "unidadPlural": "meses",
+    "maxCantidad": 12
+  }
+]

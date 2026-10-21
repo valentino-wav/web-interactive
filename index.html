@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cotizá tu proyecto de software con Fennec. Elegí servicios, plan de soporte y plazo de entrega, y obtené un presupuesto detallado al instante.">
+    <title>Fennec — Cotizá tu proyecto de software</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Pliant:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+    <!-- Toastify: notificaciones livianas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.css">
+
+    <link rel="stylesheet" href="assets/css/main.css">
+
+    <!-- Módulos del simulador -->
+    <link rel="modulepreload" href="js/datos.js">
+    <link rel="modulepreload" href="js/interfaz.js">
+</head>
+<body>
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="site-header">
+        <nav class="nav-principal">
+            <!-- Marca / logo -->
+            <a href="index.html" class="logo">
+                <img src="assets/img/fennec-logo.png" alt="Fennec" class="logo-img" width="135" height="90">
+            </a>
+
+            <!-- Navegación -->
+            <ul class="menu">
+                <li><a href="index.html" class="activo" aria-current="page">Inicio</a></li>
+                <li><a href="#cotizador">Cotizador</a></li>
+                <li><a href="pages/nosotros.html">Quiénes Somos</a></li>
+                <li><a href="pages/servicios.html">Servicios</a></li>
+                <li><a href="pages/faq.html">FAQ</a></li>
+            </ul>
+
+            <!-- CTA (derecha) -->
+            <div class="nav-cta">
+                <a href="pages/contacto.html" class="btn-contacto">Contacto</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+
+        <!-- ==================== HERO ==================== -->
+        <section class="hero">
+            <p class="hero-eyebrow">Fennec · Grupo de Programadores</p>
+            <h1 class="hero-titulo">
+                Transformamos ideas en <span class="resaltado">software</span> que impulsa negocios.
+            </h1>
+            <p class="hero-sub">
+                Armá tu presupuesto en minutos: elegí los servicios que necesitás,
+                definí el plan de soporte y el plazo, y mirá el total en tiempo real.
+            </p>
+            <div class="hero-acciones">
+                <a href="#cotizador" class="btn-lima">Cotizá tu proyecto</a>
+                <a href="pages/servicios.html" class="btn-borde">Ver servicios</a>
+            </div>
+        </section>
+
+        <!--
+            Este aviso arranca visible a propósito. El cotizador pide sus .json con
+            fetch(), y el navegador bloquea esas peticiones si la página se abre con
+            doble clic (file://). Como en ese caso el JS ni siquiera llega a correr,
+            no puedo mostrar el error desde un catch: lo dejo a la vista y app.js lo
+            esconde apenas arranca.
+        -->
+        <div class="aviso-servidor" id="aviso-servidor">
+            <h2>Abrí este proyecto con un servidor local</h2>
+            <p>
+                El cotizador carga su base de datos desde archivos <code>.json</code> usando
+                <code>fetch()</code>. Los navegadores bloquean esas peticiones cuando la página
+                se abre con doble clic (protocolo <code>file://</code>), así que el simulador
+                no puede iniciar.
+            </p>
+            <p>Para verlo funcionando, elegí una opción:</p>
+            <ul>
+                <li>En VS Code: clic derecho sobre <code>index.html</code> y elegí <strong>Open with Live Server</strong>.</li>
+                <li>Desde la terminal, parado en la carpeta del proyecto: <code>python -m http.server 5500</code> y entrá a <code>http://localhost:5500</code>.</li>
+            </ul>
+        </div>
+
+        <!-- ==================== COTIZADOR ==================== -->
+        <section class="cotizador" id="cotizador">
+
+            <h2 class="cotizador-titulo">Cotizador de proyectos</h2>
+            <p class="cotizador-intro">
+                Un presupuesto orientativo paso a paso. Los precios son de referencia
+                y se confirman después de una reunión de relevamiento.
+            </p>
+
+            <!-- Estado: cargando -->
+            <div class="cotizador-estado" id="cotizador-cargando" hidden>
+                <span class="cotizador-spinner" aria-hidden="true"></span>
+                <p>Cargando catálogo de servicios…</p>
+            </div>
+
+            <!-- Estado: error de carga -->
+            <div class="cotizador-estado cotizador-estado-error" id="cotizador-error" hidden>
+                <h3>No pudimos cargar el catálogo</h3>
+                <p id="cotizador-error-mensaje"></p>
+                <button type="button" class="btn-lima" id="btn-reintentar">Reintentar</button>
+            </div>
+
+            <!-- Contenido real del simulador -->
+            <div id="cotizador-contenido" hidden>
+
+                <!-- Barra de pasos -->
+                <nav aria-label="Pasos de la cotización">
+                    <ol class="paso-barra" id="paso-barra"></ol>
+                </nav>
+
+                <!-- Solo aparece cuando hay una cotización confirmada que todavía se puede anular -->
+                <div class="banner-congelado" id="banner-congelado" hidden>
+                    <span id="banner-congelado-texto"></span>
+                    <button type="button" class="enlace-sutil" id="btn-editar-cotizacion">Editar</button>
+                </div>
+
+                <!-- ============ PASO 1: servicios ============ -->
+                <section class="paso-panel" id="paso-panel-1" aria-labelledby="titulo-paso-1" hidden>
+                    <h3 class="cotizador-paso" id="titulo-paso-1"><span>1</span> Elegí los servicios</h3>
+
+                    <div class="cotizador-layout">
+                        <div class="cotizador-catalogo">
+                            <div class="catalogo-controles">
+                                <label class="catalogo-buscador">
+                                    <span class="visualmente-oculto">Buscar servicio</span>
+                                    <input type="search" id="catalogo-buscador" placeholder="Buscar un servicio…" autocomplete="off">
+                                </label>
+                                <div class="catalogo-filtros" id="catalogo-filtros" role="group" aria-label="Filtrar por categoría"></div>
+                            </div>
+
+                            <div class="catalogo-grid" id="catalogo-grid"></div>
+                        </div>
+
+                        <aside class="cotizador-panel">
+                            <h4 class="panel-titulo">Tu presupuesto</h4>
+                            <div class="presupuesto-lista" id="presupuesto-lista"></div>
+                            <div class="presupuesto-resumen" data-resumen="compacto" aria-live="polite"></div>
+
+                            <p class="paso-aviso" id="aviso-paso-1" role="status" hidden></p>
+
+                            <div class="paso-navegacion paso-navegacion-panel">
+                                <button type="button" class="btn-lima btn-bloque" data-navegar="siguiente">
+                                    Continuar
+                                </button>
+                                <button type="button" class="btn-borde btn-bloque" id="btn-vaciar-presupuesto">
+                                    Vaciar presupuesto
+                                </button>
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+
+                <!-- ============ PASO 2: plan y plazo ============ -->
+                <section class="paso-panel" id="paso-panel-2" aria-labelledby="titulo-paso-2" hidden>
+                    <h3 class="cotizador-paso" id="titulo-paso-2"><span>2</span> Plan de soporte y plazo</h3>
+
+                    <div class="cotizador-layout">
+                        <div class="presupuesto-opciones" id="presupuesto-opciones"></div>
+
+                        <aside class="cotizador-panel">
+                            <h4 class="panel-titulo">Resumen</h4>
+                            <div class="presupuesto-resumen" data-resumen="detallado" aria-live="polite"></div>
+                        </aside>
+                    </div>
+
+                    <p class="paso-aviso" id="aviso-paso-2" role="status" hidden></p>
+
+                    <div class="paso-navegacion">
+                        <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
+                        <button type="button" class="btn-lima" data-navegar="siguiente">Continuar</button>
+                    </div>
+                </section>
+
+                <!-- ============ PASO 3: datos del cliente ============ -->
+                <section class="paso-panel" id="paso-panel-3" aria-labelledby="titulo-paso-3" hidden>
+                    <h3 class="cotizador-paso" id="titulo-paso-3"><span>3</span> Tus datos</h3>
+
+                    <form class="cliente-form" id="form-cliente" novalidate>
+                        <div class="form-fila">
+                            <div class="form-grupo">
+                                <label for="cliente-nombre">Nombre y apellido *</label>
+                                <input type="text" id="cliente-nombre" name="nombre" placeholder="Tu nombre"
+                                       autocomplete="name" maxlength="80" aria-describedby="error-nombre">
+                                <p class="form-error" id="error-nombre" hidden></p>
+                            </div>
+                            <div class="form-grupo">
+                                <label for="cliente-email">Correo electrónico *</label>
+                                <input type="text" id="cliente-email" name="email" placeholder="tucorreo@email.com"
+                                       autocomplete="email" maxlength="120" aria-describedby="error-email">
+                                <p class="form-error" id="error-email" hidden></p>
+                            </div>
+                        </div>
+
+                        <div class="form-grupo">
+                            <label for="cliente-empresa">Empresa <span class="form-opcional">(opcional)</span></label>
+                            <input type="text" id="cliente-empresa" name="empresa" placeholder="Nombre de tu empresa"
+                                   autocomplete="organization" maxlength="80">
+                        </div>
+
+                        <div class="form-grupo">
+                            <label for="cliente-comentarios">Contanos sobre el proyecto <span class="form-opcional">(opcional)</span></label>
+                            <textarea id="cliente-comentarios" name="comentarios" rows="4" maxlength="500"
+                                      placeholder="Plazos, integraciones, referencias…" aria-describedby="error-comentarios"></textarea>
+                            <p class="form-error" id="error-comentarios" hidden></p>
+                        </div>
+
+                        <p class="paso-aviso" id="aviso-paso-3" role="status" hidden></p>
+
+                        <div class="paso-navegacion">
+                            <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
+                            <button type="submit" class="btn-lima">Continuar</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- ============ PASO 4: revisión ============ -->
+                <section class="paso-panel" id="paso-panel-4" aria-labelledby="titulo-paso-4" hidden>
+                    <h3 class="cotizador-paso" id="titulo-paso-4"><span>4</span> Revisá tu cotización</h3>
+
+                    <div class="revision" id="revision-detalle"></div>
+
+                    <p class="paso-aviso" id="aviso-paso-4" role="status" hidden></p>
+
+                    <div class="paso-navegacion">
+                        <button type="button" class="btn-borde" data-navegar="atras">Atrás</button>
+                        <button type="button" class="btn-lima" id="btn-confirmar" data-accion="confirmar">
+                            Confirmar cotización
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ============ PASO 5: pago ============ -->
+                <section class="paso-panel" id="paso-panel-5" aria-labelledby="titulo-paso-5" hidden>
+                    <h3 class="cotizador-paso" id="titulo-paso-5"><span>5</span> Pago</h3>
+
+                    <div class="pago-detalle" id="pago-detalle"></div>
+                    <div class="pago-medios" id="pago-medios"></div>
+
+                    <p class="paso-aviso" id="aviso-paso-5" role="status" hidden></p>
+
+                    <div class="paso-navegacion">
+                        <span></span>
+                        <button type="button" class="btn-lima" id="btn-pagar" data-accion="pagar">
+                            Pagar y contratar
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ============ PASO 6: contratado ============ -->
+                <section class="paso-panel" id="paso-panel-6" aria-labelledby="titulo-paso-6" hidden>
+                    <h3 class="visualmente-oculto" id="titulo-paso-6">Servicio contratado</h3>
+                    <div class="exito-panel" id="exito-detalle"></div>
+
+                    <div class="paso-navegacion paso-navegacion-centrada">
+                        <button type="button" class="btn-lima" data-accion="nueva">
+                            Hacer una cotización nueva
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ============ Historial (fuera de los pasos) ============ -->
+                <div class="cotizador-historial">
+                    <div class="historial-encabezado">
+                        <h3>Tus cotizaciones</h3>
+                        <button type="button" class="btn-borde" id="btn-reiniciar-todo">Reiniciar simulador</button>
+                    </div>
+
+                    <div class="historial-lista" id="historial-lista"></div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="site-footer">
+        <p class="footer-marca">Fennec</p>
+
+        <nav class="footer-nav">
+            <a href="index.html">Inicio</a>
+            <a href="#cotizador">Cotizador</a>
+            <a href="pages/nosotros.html">Quiénes Somos</a>
+            <a href="pages/servicios.html">Servicios</a>
+            <a href="pages/faq.html">FAQ</a>
+            <a href="pages/contacto.html">Contacto</a>
+        </nav>
+
+        <p class="footer-copy">© 2026 Fennec. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Librerías externas: reemplazan los cuadros de diálogo nativos del navegador -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.14.5/dist/sweetalert2.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js@1.12.0/src/toastify.min.js"></script>
+
+    <script type="module" src="js/app.js"></script>
+
+</body>
+</html>

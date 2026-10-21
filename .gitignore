@@ -1,0 +1,10 @@
+# Archivos que genera Windows en las carpetas con imágenes
+Thumbs.db
+desktop.ini
+
+# macOS, por si alguien abre el repo desde una Mac
+.DS_Store
+
+# Configuración local de herramientas, no es parte de la entrega
+.vscode/
+.claude/
