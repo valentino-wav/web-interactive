@@ -1,5 +1,10 @@
 {
   "moneda": "ARS",
+  "estadosCotizacion": {
+    "pendiente-pago": "Pendiente de pago",
+    "contratada": "Contratada",
+    "anulada": "Anulada"
+  },
   "iva": 0.21,
   "pasos": [
     {

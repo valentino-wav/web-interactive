@@ -28,9 +28,9 @@ const estado = {
     planId: "",
     plazoId: "",
     medioPagoId: "",
-    cliente: { nombre: "", email: "", empresa: "", comentarios: "" },
+    cliente: datos.clienteVacio(),
     paso: PASO_INICIAL,
-    fase: "borrador",
+    fase: datos.FASES.BORRADOR,
     cotizacionActivaId: null,
     historial: [],
     enviando: false
@@ -115,7 +115,7 @@ function totalesActuales() {
     });
 }
 
-const esEditable = () => estado.fase === "borrador";
+const esEditable = () => estado.fase === datos.FASES.BORRADOR;
 
 /** El último paso sale del largo de la lista del JSON, no de un número suelto acá. */
 const ultimoPaso = () => estado.configuracion.pasos.length;
@@ -128,7 +128,7 @@ function validarCliente() {
     const { nombre, email, comentarios } = estado.cliente;
     const errores = {};
 
-    if (nombre.trim().length < 2) {
+    if (nombre.trim().length < datos.LIMITES.nombreMinimo) {
         errores.nombre = "Escribí tu nombre y apellido.";
     }
 
@@ -136,8 +136,8 @@ function validarCliente() {
         errores.email = "Revisá el correo: tiene que ser del estilo nombre@dominio.com.";
     }
 
-    if (comentarios.length > 500) {
-        errores.comentarios = "El comentario no puede superar los 500 caracteres.";
+    if (comentarios.length > datos.LIMITES.comentarios) {
+        errores.comentarios = `El comentario no puede superar los ${datos.LIMITES.comentarios} caracteres.`;
     }
 
     return errores;
@@ -164,11 +164,11 @@ function motivoBloqueo(numero) {
     }
 
     if (numero === 4) {
-        return estado.fase === "borrador" ? "Confirmá la cotización para pasar al pago." : "";
+        return estado.fase === datos.FASES.BORRADOR ? "Confirmá la cotización para pasar al pago." : "";
     }
 
     if (numero === PASO_PAGO) {
-        return estado.fase === "pagada" ? "" : "Elegí un medio de pago y confirmá.";
+        return estado.fase === datos.FASES.PAGADA ? "" : "Elegí un medio de pago y confirmá.";
     }
 
     return "";
@@ -316,7 +316,7 @@ function armarSnapshot() {
     return {
         numero: datos.siguienteNumero(estado.historial),
         fecha: new Date().toISOString(),
-        estado: "pendiente-pago",
+        estado: datos.ESTADOS.PENDIENTE,
         fechaContratacion: null,
         cliente: { ...estado.cliente },
         lineas: hidratarLineas(),
@@ -366,7 +366,7 @@ async function confirmarCotizacion() {
 
         estado.historial = datos.leerHistorial();
         estado.cotizacionActivaId = snapshot.numero;
-        estado.fase = "confirmada";
+        estado.fase = datos.FASES.CONFIRMADA;
 
         interfaz.notificar("exito", `Cotización ${snapshot.numero} emitida.`);
         irAPaso(PASO_PAGO);
@@ -391,7 +391,7 @@ async function pagar() {
     const cotizacion = buscarCotizacionActiva();
     const medioPago = buscarMedioPago();
 
-    if (!cotizacion || cotizacion.estado !== "pendiente-pago") {
+    if (!cotizacion || cotizacion.estado !== datos.ESTADOS.PENDIENTE) {
         interfaz.mostrarAvisoPaso(PASO_PAGO, "La cotización ya no está disponible. Volvé a armarla.");
         volverABorrador();
         return;
@@ -407,12 +407,7 @@ async function pagar() {
 
     const confirmado = await interfaz.confirmar(
         "Confirmar el pago del servicio",
-        `<p>Estás por abonar la cotización <strong>${cotizacion.numero}</strong>.</p>
-         <p style="font-size:1.5rem;color:#b4e61a;margin:1rem 0;">
-            <strong>${interfaz.formatearMoneda(totales.totalAPagar)}</strong>
-         </p>
-         <p>Medio de pago: <strong>${medioPago.nombre}</strong>.<br>
-            Al confirmar, el servicio queda contratado.</p>`,
+        interfaz.cuerpoConfirmacionPago(cotizacion.numero, totales.totalAPagar, medioPago.nombre),
         "Confirmar el pago"
     );
 
@@ -430,7 +425,7 @@ async function pagar() {
         // Guardo el cambio en la cotización antes de mover el paso. Si justo
         // acá se recarga la página, queda pendiente y se puede retomar.
         const registrada = datos.modificarCotizacion(cotizacion.numero, {
-            estado: "contratada",
+            estado: datos.ESTADOS.CONTRATADA,
             fechaContratacion: new Date().toISOString(),
             medioPago: { id: medioPago.id, nombre: medioPago.nombre, ajuste: medioPago.ajuste },
             totalPagado: totales.totalAPagar
@@ -443,7 +438,7 @@ async function pagar() {
         }
 
         estado.historial = datos.leerHistorial();
-        estado.fase = "pagada";
+        estado.fase = datos.FASES.PAGADA;
 
         interfaz.notificar("exito", "¡Pago registrado! El servicio quedó contratado.");
         irAPaso(ultimoPaso());
@@ -455,7 +450,7 @@ async function pagar() {
 }
 
 function volverABorrador() {
-    estado.fase = "borrador";
+    estado.fase = datos.FASES.BORRADOR;
     estado.cotizacionActivaId = null;
     estado.medioPagoId = "";
     reencuadrar();
@@ -468,7 +463,7 @@ function volverABorrador() {
  * en curso, el asistente se destraba y vuelve al paso 1.
  */
 function anularCotizacion(numero) {
-    datos.modificarCotizacion(numero, { estado: "anulada" });
+    datos.modificarCotizacion(numero, { estado: datos.ESTADOS.ANULADA });
     estado.historial = datos.leerHistorial();
     interfaz.notificar("info", `Cotización ${numero} anulada.`);
 
@@ -504,7 +499,7 @@ async function editarTrasConfirmar() {
 async function cancelarCotizacion(numero) {
     const cotizacion = estado.historial.find((candidata) => candidata.numero === numero);
 
-    if (!cotizacion || cotizacion.estado !== "pendiente-pago") {
+    if (!cotizacion || cotizacion.estado !== datos.ESTADOS.PENDIENTE) {
         return;
     }
 
@@ -531,8 +526,8 @@ async function cancelarCotizacion(numero) {
 function reiniciarBorrador() {
     estado.items = [];
     estado.medioPagoId = "";
-    estado.cliente = { nombre: "", email: "", empresa: "", comentarios: "" };
-    estado.fase = "borrador";
+    estado.cliente = datos.clienteVacio();
+    estado.fase = datos.FASES.BORRADOR;
     estado.cotizacionActivaId = null;
     estado.categoria = CATEGORIA_TODAS;
     estado.busqueda = "";
@@ -658,7 +653,7 @@ function actualizar() {
             datos.aplicarMedioPago(cotizacion.totales, buscarMedioPago())
         );
 
-        if (cotizacion.estado === "contratada") {
+        if (cotizacion.estado === datos.ESTADOS.CONTRATADA) {
             interfaz.renderExito(cotizacion);
         }
     }
@@ -791,14 +786,18 @@ function hidratarEstado(servicios, configuracion) {
     estado.configuracion = configuracion;
     estado.historial = datos.leerHistorial();
 
+    // Antes del primer render: la moneda, las etiquetas de estado y los
+    // maxlength salen de acá.
+    interfaz.configurar(configuracion);
+
     const { borrador, descartados } = datos.sanearBorrador(datos.leerBorrador(), servicios, configuracion);
 
     Object.assign(estado, borrador);
 
     // Si la cotización que estaba pagando ya no está (la borré, o limpié el
     // storage), vuelvo a borrador en vez de mostrar un pago sin datos.
-    if (estado.fase !== "borrador" && !buscarCotizacionActiva()) {
-        estado.fase = "borrador";
+    if (estado.fase !== datos.FASES.BORRADOR && !buscarCotizacionActiva()) {
+        estado.fase = datos.FASES.BORRADOR;
         estado.cotizacionActivaId = null;
     }
 

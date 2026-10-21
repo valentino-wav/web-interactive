@@ -2,7 +2,13 @@
 //  interfaz.js — Todo lo que se ve.
 //  Acá está cada innerHTML y cada texto que le llega al usuario.
 //  En este archivo no guardo estado ni hago cuentas de precios.
+//
+//  Lo único que importo son las constantes de estado de datos.js, para no
+//  tener los mismos textos escritos en dos archivos. Sigue sin haber ciclos:
+//  datos.js no importa nada de nadie.
 // ============================================================
+
+import { ESTADOS, FASES, LIMITES } from "./datos.js";
 
 const nodos = {
     cotizador: document.getElementById("cotizador"),
@@ -30,26 +36,46 @@ const nodos = {
 
 const CAMPOS_CLIENTE = ["nombre", "email", "empresa", "comentarios"];
 
-const ETIQUETAS_ESTADO = {
-    "pendiente-pago": "Pendiente de pago",
-    contratada: "Contratada",
-    anulada: "Anulada"
-};
+// Las llena configurar() con lo que venga del JSON. Arrancan con el id crudo
+// para que, si algo falla antes de configurar, se vea "contratada" y no vacío.
+let etiquetasEstado = Object.fromEntries(Object.values(ESTADOS).map((id) => [id, id]));
 
-const formatoMoneda = new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-});
+// El idioma de la interfaz es del código; la moneda es dato de negocio y
+// sale de configuracion.json. Hasta que configurar() corra, formatea números
+// pelados: nadie llega a ver precios antes de que carguen los datos.
+const IDIOMA = "es-AR";
 
-const formatoFecha = new Intl.DateTimeFormat("es-AR", {
+let formatoMoneda = new Intl.NumberFormat(IDIOMA);
+
+const formatoFecha = new Intl.DateTimeFormat(IDIOMA, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
 });
+
+/**
+ * Lo que interfaz.js necesita saber de configuracion.json: con qué moneda
+ * formatear y cómo se llama cada estado. La llama app.js apenas cargan los
+ * datos, antes del primer render.
+ */
+export function configurar({ moneda, estadosCotizacion }) {
+    formatoMoneda = new Intl.NumberFormat(IDIOMA, {
+        style: "currency",
+        currency: moneda,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+
+    etiquetasEstado = estadosCotizacion;
+
+    // Los maxlength salen de LIMITES, así el tope que corta el navegador y el
+    // que recorta el saneo son el mismo número y no se pueden desincronizar.
+    CAMPOS_CLIENTE.forEach((campo) => {
+        document.getElementById(`cliente-${campo}`).maxLength = LIMITES[campo];
+    });
+}
 
 /**
  * Solo da formato, no redondea. El redondeo ya lo hice en cada paso del
@@ -111,10 +137,27 @@ export function mostrarContenido() {
 //  Avisos y confirmaciones
 // ------------------------------------------------------------
 
+/**
+ * Los colores los define el CSS en :root. Los leo una sola vez en lugar de
+ * repetirlos acá: así cambiar --lima en la hoja de estilos también cambia los
+ * modales y las notificaciones, que es lo que uno espera. Los valores de
+ * respaldo son por si la hoja no llegó a cargar.
+ */
+const raizCss = getComputedStyle(document.documentElement);
+const color = (nombre, respaldo) => raizCss.getPropertyValue(nombre).trim() || respaldo;
+
+const PALETA = {
+    lima: color("--lima", "#b4e61a"),
+    carta: color("--gris-card", "#111"),
+    cartaSuave: color("--gris-card-suave", "#181818"),
+    texto: color("--texto", "#fff"),
+    rojo: color("--rojo", "#ff6b6b")
+};
+
 const COLORES_AVISO = {
-    exito: "#b4e61a",
-    info: "#ffffff",
-    error: "#ff6b6b"
+    exito: PALETA.lima,
+    info: PALETA.texto,
+    error: PALETA.rojo
 };
 
 /** Aviso corto con Toastify. Lo uso como refuerzo, nunca como único lugar donde aparece el mensaje. */
@@ -132,11 +175,11 @@ export function notificar(tipo, mensaje) {
         position: "right",
         close: true,
         style: {
-            background: "#111",
+            background: PALETA.carta,
             color: color,
             border: `1px solid ${color}`,
-            borderRadius: "8px",
-            fontFamily: '"Pliant", sans-serif',
+            borderRadius: color("--radio-chico", "8px"),
+            fontFamily: color("--fuente-texto", '"Pliant", sans-serif'),
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)"
         }
     }).showToast();
@@ -191,6 +234,19 @@ function modalPropio(titulo, cuerpoHtml, textoConfirmar, conCancelar) {
     });
 }
 
+/**
+ * El cuerpo del modal que pide confirmar el pago.
+ * Lo tenía escrito dentro de app.js, con un style embebido y el color lima a
+ * mano. El markup y los colores son cosa de este archivo.
+ */
+export function cuerpoConfirmacionPago(numero, monto, nombreMedio) {
+    return `
+        <p>Estás por abonar la cotización <strong>${escapar(numero)}</strong>.</p>
+        <p class="modal-monto">${formatearMoneda(monto)}</p>
+        <p>Medio de pago: <strong>${escapar(nombreMedio)}</strong>.<br>
+           Al confirmar, el servicio queda contratado.</p>`;
+}
+
 /** Le pregunta al usuario y devuelve true o false. */
 export async function confirmar(titulo, cuerpoHtml, textoConfirmar = "Confirmar") {
     if (typeof Swal === "undefined") {
@@ -203,10 +259,10 @@ export async function confirmar(titulo, cuerpoHtml, textoConfirmar = "Confirmar"
         showCancelButton: true,
         confirmButtonText: textoConfirmar,
         cancelButtonText: "Cancelar",
-        background: "#111",
-        color: "#ffffff",
-        confirmButtonColor: "#b4e61a",
-        cancelButtonColor: "#333333",
+        background: PALETA.carta,
+        color: PALETA.texto,
+        confirmButtonColor: PALETA.lima,
+        cancelButtonColor: PALETA.cartaSuave,
         reverseButtons: true,
         focusCancel: true
     });
@@ -304,7 +360,7 @@ export function irAlCotizador() {
  * tocar nada, asi que el aviso solo ocuparia lugar.
  */
 export function mostrarBannerCongelado(fase, numero) {
-    const sePuedeAnular = fase === "confirmada";
+    const sePuedeAnular = fase === FASES.CONFIRMADA;
 
     nodos.bannerCongelado.hidden = !sePuedeAnular;
 
@@ -728,7 +784,7 @@ function comprobanteHtml(snapshot) {
             <dl>
                 <dt>Cotización</dt><dd>${numero}</dd>
                 <dt>Fecha</dt><dd>${formatearFecha(fecha)}</dd>
-                <dt>Estado</dt><dd>${ETIQUETAS_ESTADO[estado]}</dd>
+                <dt>Estado</dt><dd>${etiquetasEstado[estado]}</dd>
                 <dt>Cliente</dt><dd>${escapar(cliente.nombre)}</dd>
                 <dt>Empresa</dt><dd>${escapar(cliente.empresa || "Particular")}</dd>
                 <dt>Plan</dt><dd>${plan.nombre}</dd>
@@ -752,10 +808,10 @@ export function mostrarComprobante(snapshot) {
     Swal.fire({
         title: `Comprobante ${snapshot.numero}`,
         html: comprobanteHtml(snapshot),
-        background: "#111",
-        color: "#ffffff",
+        background: PALETA.carta,
+        color: PALETA.texto,
         confirmButtonText: "Cerrar",
-        confirmButtonColor: "#b4e61a",
+        confirmButtonColor: PALETA.lima,
         width: 560
     });
 }
@@ -784,7 +840,7 @@ export function renderHistorial(cotizaciones, cotizacionActivaId) {
             <article class="historial-tarjeta${esActiva ? " historial-tarjeta-activa" : ""}">
                 <div class="historial-encabezado-tarjeta">
                     <p class="historial-numero">${numero}</p>
-                    <span class="estado-pastilla" data-estado="${estado}">${ETIQUETAS_ESTADO[estado]}</span>
+                    <span class="estado-pastilla" data-estado="${estado}">${etiquetasEstado[estado]}</span>
                 </div>
                 <p class="historial-fecha">${formatearFecha(fecha)}</p>
                 <p class="historial-cliente">${escapar(cliente.nombre)} · ${escapar(cliente.empresa || "Particular")}</p>
@@ -792,14 +848,14 @@ export function renderHistorial(cotizaciones, cotizacionActivaId) {
                     ${lineas.map(({ nombre, cantidad }) => `<li>${cantidad} × ${nombre}</li>`).join("")}
                 </ul>
                 <div class="historial-total">
-                    <span>${estado === "contratada" ? "Abonado" : "Total"}</span>
+                    <span>${estado === ESTADOS.CONTRATADA ? "Abonado" : "Total"}</span>
                     <span>${formatearMoneda(monto)}</span>
                 </div>
                 <div class="historial-acciones">
                     <button type="button" class="btn-ver-comprobante" data-accion="comprobante" data-numero="${numero}">
                         Ver comprobante
                     </button>
-                    ${estado === "pendiente-pago" ? `
+                    ${estado === ESTADOS.PENDIENTE ? `
                         <button type="button" class="btn-cancelar-cotizacion" data-accion="cancelar-cotizacion"
                                 data-numero="${numero}">Cancelar cotización</button>` : ""}
                     ${esActiva ? "" : `

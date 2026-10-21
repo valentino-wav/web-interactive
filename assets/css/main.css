@@ -601,6 +601,7 @@ h1, h2, h3, h4,
     --borde-suave: rgba(255, 255, 255, 0.1);
     --borde-input: rgba(255, 255, 255, 0.15);
     --rojo: #ff6b6b;
+    --fuente-texto: "Pliant", sans-serif;
     --radio-card: 16px;
     --radio-chico: 8px;
     --radio-pildora: 999px;
@@ -1900,6 +1901,13 @@ button.btn-borde {
 }
 
 /* ---------- Cuerpo de los modales propios ---------- */
+
+.modal-monto {
+    font-size: 1.5rem;
+    color: var(--lima);
+    margin: 1rem 0;
+    font-weight: 700;
+}
 
 .modal-propio-cuerpo {
     margin-bottom: 1.5rem;

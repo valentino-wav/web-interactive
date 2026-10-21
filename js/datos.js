@@ -13,7 +13,38 @@ const VERSION_BORRADOR = 1;
 
 const CANTIDAD_MAXIMA_POR_DEFECTO = 10;
 
-const CLIENTE_VACIO = { nombre: "", email: "", empresa: "", comentarios: "" };
+/**
+ * En qué punto está la cotización que se está armando.
+ * Los tenía sueltos como texto en los tres archivos; con una constante, un
+ * typo deja de compilar en vez de descartarme el borrador en silencio.
+ */
+export const FASES = Object.freeze({
+    BORRADOR: "borrador",
+    CONFIRMADA: "confirmada",
+    PAGADA: "pagada"
+});
+
+/** Estado de una cotización ya emitida. */
+export const ESTADOS = Object.freeze({
+    PENDIENTE: "pendiente-pago",
+    CONTRATADA: "contratada",
+    ANULADA: "anulada"
+});
+
+/** Largos de los campos del cliente. Antes el 500 estaba escrito 4 veces. */
+export const LIMITES = Object.freeze({
+    nombreMinimo: 2,
+    nombre: 80,
+    email: 120,
+    empresa: 80,
+    comentarios: 500
+});
+
+/** Devuelve un objeto nuevo cada vez: si compartiera uno, al escribir en el
+ *  formulario se contaminaría para toda la sesión. */
+export function clienteVacio() {
+    return { nombre: "", email: "", empresa: "", comentarios: "" };
+}
 
 // ------------------------------------------------------------
 //  Carga de los JSON
@@ -217,7 +248,7 @@ export function sanearBorrador(borrador, servicios, configuracion) {
         })
         .filter((item) => item !== null);
 
-    const clienteGuardado = guardado.cliente || CLIENTE_VACIO;
+    const clienteGuardado = guardado.cliente || clienteVacio();
 
     return {
         descartados,
@@ -227,13 +258,13 @@ export function sanearBorrador(borrador, servicios, configuracion) {
             plazoId: existeEn(plazos, guardado.plazoId) ? guardado.plazoId : plazos[0].id,
             medioPagoId: existeEn(mediosPago, guardado.medioPagoId) ? guardado.medioPagoId : "",
             cliente: {
-                nombre: textoSeguro(clienteGuardado.nombre, 80),
-                email: textoSeguro(clienteGuardado.email, 120),
-                empresa: textoSeguro(clienteGuardado.empresa, 80),
-                comentarios: textoSeguro(clienteGuardado.comentarios, 500)
+                nombre: textoSeguro(clienteGuardado.nombre, LIMITES.nombre),
+                email: textoSeguro(clienteGuardado.email, LIMITES.email),
+                empresa: textoSeguro(clienteGuardado.empresa, LIMITES.empresa),
+                comentarios: textoSeguro(clienteGuardado.comentarios, LIMITES.comentarios)
             },
             paso: Number.isInteger(guardado.paso) ? guardado.paso : 1,
-            fase: ["borrador", "confirmada", "pagada"].includes(guardado.fase) ? guardado.fase : "borrador",
+            fase: Object.values(FASES).includes(guardado.fase) ? guardado.fase : FASES.BORRADOR,
             cotizacionActivaId: guardado.cotizacionActivaId || null
         }
     };
@@ -250,15 +281,20 @@ export function redondear(numero) {
 
 /**
  * Devuelve el tramo de descuento más alto que llega a cubrir el monto.
- * Al reduce le paso valor inicial a propósito: si el JSON no tuviera el
- * tramo de cero, el filter devolvería vacío y reduce tira error.
+ *
+ * Al reduce le paso valor inicial a propósito: si el JSON no tuviera el tramo
+ * de cero, el filter devolvería vacío y reduce tira error. El inicial es
+ * neutro y no copia el texto del JSON: antes repetía acá el objeto entero,
+ * etiqueta incluida, y cambiarla en el .json dejaba la vieja viva en el código.
+ * Con porcentaje 0 el descuento da 0, y la fila del descuento solo se dibuja
+ * cuando es mayor que cero, así que la etiqueta vacía nunca llega a pantalla.
  */
 export function resolverTramo(tramos, monto) {
-    const sinDescuento = { desde: 0, porcentaje: 0, etiqueta: "Sin descuento por volumen" };
+    const neutro = { desde: -1, porcentaje: 0, etiqueta: "" };
 
     return tramos
         .filter((tramo) => monto >= tramo.desde)
-        .reduce((mayor, tramo) => (tramo.desde > mayor.desde ? tramo : mayor), sinDescuento);
+        .reduce((mayor, tramo) => (tramo.desde > mayor.desde ? tramo : mayor), neutro);
 }
 
 /**
