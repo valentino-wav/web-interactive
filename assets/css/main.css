@@ -62,6 +62,7 @@ body::after {
     background-position: 220px 380px;
   }
 }
+
 @keyframes deriva-b {
   from {
     background-position: 0 0;
@@ -69,7 +70,9 @@ body::after {
   to {
     background-position: -300px 260px;
   }
-}@media (prefers-reduced-motion: reduce) {
+}
+
+@media (prefers-reduced-motion: reduce) {
   body::before,
   body::after {
     animation: none;
@@ -553,9 +556,18 @@ h1, h2, h3, h4,
   padding: 0.8rem 2rem;
   transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
-.btn-lima:hover,
-.btn-borde:hover {
+.btn-lima:hover:not(:disabled),
+.btn-borde:hover:not(:disabled) {
   transform: translateY(-2px);
+}
+
+/* Sin esto un botón apagado se ve igual que uno activo: hacés clic, no pasa
+   nada y no hay manera de darse cuenta de por qué. */
+.btn-lima:disabled,
+.btn-borde:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-lima {
@@ -758,7 +770,9 @@ button.btn-borde {
 
 @keyframes girar {
     to { transform: rotate(360deg); }
-}@media (prefers-reduced-motion: reduce) {
+}
+
+@media (prefers-reduced-motion: reduce) {
     .cotizador-spinner { animation-duration: 3s; }}
 
 /* ---------- Layout de dos columnas ---------- */
@@ -1033,13 +1047,7 @@ button.btn-borde {
     color: var(--rojo);
 }
 
-/* ---------- Opciones: plan y plazo ---------- */
-
-.presupuesto-opciones {
-    display: grid;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
+/* ---------- Opciones en radio: los medios de pago ---------- */
 
 .opcion-grupo legend {
     color: var(--texto-placeholder);
@@ -1460,13 +1468,6 @@ button.btn-borde {
     margin: 0 0 1.5rem;
 }
 
-.modal-propio-acciones {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    justify-content: flex-end;
-}
-
 .modal-propio-acciones .btn-lima,
 .modal-propio-acciones .btn-borde {
     padding: 0.65rem 1.5rem;
@@ -1642,46 +1643,8 @@ button.btn-borde {
     font-size: 0.9rem;
 }
 
-/* ---------- Banner de cotización congelada ---------- */
-
-/* Misma historia que con .paso-panel: inline-flex le gana al hidden,
-   asi que hay que apagarlo a mano. */
-.banner-congelado[hidden] {
-    display: none !important;
-}
-
-/* No es una barra de lado a lado: se queda del ancho de su texto. */
-.banner-congelado {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-bottom: 1.75rem;
-    padding: 0.5rem 0.9rem;
-    background-color: rgba(180, 230, 26, 0.08);
-    border: 1px solid rgba(180, 230, 26, 0.45);
-    border-radius: var(--radio-pildora);
-    color: var(--texto-tenue);
-    font-size: 0.82rem;
-}
-
 /* Boton que se lee como un enlace: para acciones secundarias que no
    compiten con el boton principal del paso. */
-.enlace-sutil {
-    background: none;
-    border: none;
-    padding: 0;
-    color: var(--lima);
-    font-family: inherit;
-    font-size: inherit;
-    text-decoration: underline;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-}
-
-.enlace-sutil:hover {
-    opacity: 0.75;
-}
 
 .btn-cancelar-cotizacion {
     color: var(--texto-suave);
@@ -1738,53 +1701,18 @@ button.btn-borde {
     overflow-wrap: anywhere;
 }
 
-.revision-totales {
+/* ---------- Paso 2: confirmación ---------- */
+
+/* El resumen y los medios de pago, lado a lado cuando hay lugar. */
+.confirmacion {
     display: grid;
-    gap: 0.5rem;
-    align-content: start;
-    border-color: rgba(180, 230, 26, 0.35);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+    margin-top: 1.5rem;
 }
 
-/* ---------- Paso 5: pago ---------- */
-
-.pago-detalle {
-    background-color: var(--gris-card);
-    border: 1px solid var(--borde-suave);
-    border-radius: var(--radio-card);
-    padding: 1.75rem;
-    margin-bottom: 1.5rem;
-}
-
-.pago-cabecera {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-bottom: 1.25rem;
-    margin-bottom: 1.25rem;
-    border-bottom: 1px solid var(--borde-suave);
-}
-
-.pago-etiqueta {
-    margin: 0 0 0.25rem;
-    color: var(--texto-placeholder);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-}
-
-.pago-numero {
-    margin: 0;
-    font-family: "Archivo Black", sans-serif;
-    color: var(--lima);
-    font-size: 1.15rem;
-}
-
-.pago-fecha {
-    margin: 0;
-    color: var(--texto);
-    font-size: 0.9rem;
-}
+/* ---------- Paso 2: medios de pago ---------- */
 
 .pago-medios {
     display: grid;
@@ -1909,12 +1837,6 @@ button.btn-borde {
     font-weight: 700;
 }
 
-.modal-propio-cuerpo {
-    margin-bottom: 1.5rem;
-    color: var(--texto-suave);
-    line-height: 1.6;
-}
-
 /* ---------- Responsive ---------- */
 
 @media (max-width: 768px) {
@@ -1955,9 +1877,7 @@ button.btn-borde {
     .exito-panel {
         padding: 2rem 1.25rem;
     }
-}
-
-@media (max-width: 480px) {
+}@media (max-width: 480px) {
     .revision-datos {
         grid-template-columns: 1fr;
         gap: 0.15rem 0;
@@ -1966,5 +1886,4 @@ button.btn-borde {
     .revision-datos dd {
         text-align: left;
         margin-bottom: 0.6rem;
-    }
-}
+    }}
