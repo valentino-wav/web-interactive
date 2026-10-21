@@ -144,14 +144,18 @@ export function mostrarContenido() {
  * respaldo son por si la hoja no llegó a cargar.
  */
 const raizCss = getComputedStyle(document.documentElement);
-const color = (nombre, respaldo) => raizCss.getPropertyValue(nombre).trim() || respaldo;
+
+/** Lee una custom property del :root. Ojo con el nombre: adentro de
+ *  notificar() hay una variable "color", y si esta función se llamaba igual
+ *  la tapaba y reventaba al intentar llamar a un string. */
+const tokenCss = (nombre, respaldo) => raizCss.getPropertyValue(nombre).trim() || respaldo;
 
 const PALETA = {
-    lima: color("--lima", "#b4e61a"),
-    carta: color("--gris-card", "#111"),
-    cartaSuave: color("--gris-card-suave", "#181818"),
-    texto: color("--texto", "#fff"),
-    rojo: color("--rojo", "#ff6b6b")
+    lima: tokenCss("--lima", "#b4e61a"),
+    carta: tokenCss("--gris-card", "#111"),
+    cartaSuave: tokenCss("--gris-card-suave", "#181818"),
+    texto: tokenCss("--texto", "#fff"),
+    rojo: tokenCss("--rojo", "#ff6b6b")
 };
 
 const COLORES_AVISO = {
@@ -166,7 +170,7 @@ export function notificar(tipo, mensaje) {
         return;
     }
 
-    const color = COLORES_AVISO[tipo] || COLORES_AVISO.info;
+    const colorAviso = COLORES_AVISO[tipo] || COLORES_AVISO.info;
 
     Toastify({
         text: mensaje,
@@ -176,10 +180,10 @@ export function notificar(tipo, mensaje) {
         close: true,
         style: {
             background: PALETA.carta,
-            color: color,
-            border: `1px solid ${color}`,
-            borderRadius: color("--radio-chico", "8px"),
-            fontFamily: color("--fuente-texto", '"Pliant", sans-serif'),
+            color: colorAviso,
+            border: `1px solid ${colorAviso}`,
+            borderRadius: tokenCss("--radio-chico", "8px"),
+            fontFamily: tokenCss("--fuente-texto", '"Pliant", sans-serif'),
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)"
         }
     }).showToast();
