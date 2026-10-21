@@ -224,9 +224,18 @@ function reencuadrar() {
 
 // ------------------------------------------------------------
 //  Mutaciones del presupuesto
+//
+//  Las cuatro arrancan chequeando esEditable(). Antes confiaba solo en el
+//  atributo disabled que escribe el render, y encontré que con la cotización
+//  ya confirmada se podía entrar al paso 1 y vaciar el presupuesto: quedaba
+//  una cotización emitida con cero ítems y el asistente trabado.
 // ------------------------------------------------------------
 
 function agregarServicio(id) {
+    if (!esEditable()) {
+        return;
+    }
+
     const servicio = buscarServicio(id);
     const item = estado.items.find((candidato) => candidato.id === id);
 
@@ -241,6 +250,10 @@ function agregarServicio(id) {
 }
 
 function cambiarCantidad(id, delta) {
+    if (!esEditable()) {
+        return;
+    }
+
     const item = estado.items.find((candidato) => candidato.id === id);
     const tope = datos.topeDe(buscarServicio(id));
     const nueva = item.cantidad + delta;
@@ -255,6 +268,10 @@ function cambiarCantidad(id, delta) {
 }
 
 function quitarServicio(id) {
+    if (!esEditable()) {
+        return;
+    }
+
     const { nombre } = buscarServicio(id);
 
     estado.items = estado.items.filter((item) => item.id !== id);
@@ -263,6 +280,10 @@ function quitarServicio(id) {
 }
 
 async function vaciarPresupuesto() {
+    if (!esEditable()) {
+        return;
+    }
+
     if (estado.items.length === 0) {
         interfaz.notificar("info", "Tu presupuesto ya está vacío.");
         return;
@@ -337,6 +358,12 @@ async function confirmarCotizacion() {
     try {
         const snapshot = datos.guardarCotizacion(armarSnapshot());
 
+        if (!snapshot) {
+            interfaz.mostrarAvisoPaso(4, "No pudimos guardar la cotización. Revisá que el navegador permita almacenamiento y volvé a intentar.");
+            interfaz.notificar("error", "No se pudo guardar la cotización.");
+            return;
+        }
+
         estado.historial = datos.leerHistorial();
         estado.cotizacionActivaId = snapshot.numero;
         estado.fase = "confirmada";
@@ -402,12 +429,18 @@ async function pagar() {
 
         // Guardo el cambio en la cotización antes de mover el paso. Si justo
         // acá se recarga la página, queda pendiente y se puede retomar.
-        datos.modificarCotizacion(cotizacion.numero, {
+        const registrada = datos.modificarCotizacion(cotizacion.numero, {
             estado: "contratada",
             fechaContratacion: new Date().toISOString(),
             medioPago: { id: medioPago.id, nombre: medioPago.nombre, ajuste: medioPago.ajuste },
             totalPagado: totales.totalAPagar
         });
+
+        if (!registrada) {
+            interfaz.mostrarAvisoPaso(PASO_PAGO, "No pudimos registrar el pago. La cotización sigue pendiente, podés reintentar.");
+            interfaz.notificar("error", "No se pudo registrar el pago.");
+            return;
+        }
 
         estado.historial = datos.leerHistorial();
         estado.fase = "pagada";
@@ -489,9 +522,13 @@ async function cancelarCotizacion(numero) {
     }
 }
 
-function nuevaCotizacion() {
-    datos.borrarBorrador();
-
+/**
+ * Deja el borrador como recién llegado.
+ * Lo comparten "Nueva cotización" y "Reiniciar simulador", que antes hacían
+ * casi lo mismo pero cada una se olvidaba de resetear algo distinto: una no
+ * tocaba el plan y el plazo, la otra no tocaba el filtro ni la búsqueda.
+ */
+function reiniciarBorrador() {
     estado.items = [];
     estado.medioPagoId = "";
     estado.cliente = { nombre: "", email: "", empresa: "", comentarios: "" };
@@ -499,9 +536,17 @@ function nuevaCotizacion() {
     estado.cotizacionActivaId = null;
     estado.categoria = CATEGORIA_TODAS;
     estado.busqueda = "";
+    estado.planId = estado.configuracion.planesSoporte[0].id;
+    estado.plazoId = estado.configuracion.plazos[0].id;
 
     interfaz.pintarFormularioCliente(estado.cliente);
     interfaz.mostrarErroresCliente({});
+    interfaz.limpiarBuscador();
+}
+
+function nuevaCotizacion() {
+    datos.borrarBorrador();
+    reiniciarBorrador();
     irAPaso(1);
 }
 
@@ -553,17 +598,9 @@ async function reiniciarTodo() {
 
     datos.borrarTodo();
 
-    estado.items = [];
     estado.historial = [];
-    estado.medioPagoId = "";
-    estado.cliente = { nombre: "", email: "", empresa: "", comentarios: "" };
-    estado.fase = "borrador";
-    estado.cotizacionActivaId = null;
-    estado.planId = estado.configuracion.planesSoporte[0].id;
-    estado.plazoId = estado.configuracion.plazos[0].id;
+    reiniciarBorrador();
 
-    interfaz.pintarFormularioCliente(estado.cliente);
-    interfaz.mostrarErroresCliente({});
     interfaz.notificar("info", "Simulador reiniciado.");
     irAPaso(1);
 }
@@ -602,7 +639,7 @@ function actualizar() {
     interfaz.renderCatalogo(filtrarServicios(), estado.items.map((item) => item.id), { soloLectura });
     interfaz.renderPresupuesto(lineas, { soloLectura });
     interfaz.renderOpciones(planesSoporte, plazos, estado.planId, estado.plazoId, { soloLectura });
-    interfaz.bloquearFormularioCliente(soloLectura);
+    interfaz.bloquearEdicion(soloLectura);
 
     const totales = totalesActuales();
     interfaz.renderResumenes(totales, { vacio: lineas.length === 0 });

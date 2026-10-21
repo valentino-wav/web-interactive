@@ -119,14 +119,15 @@ export function leerHistorial() {
     return Array.isArray(historial) ? historial : [];
 }
 
+/** Devuelve el snapshot guardado, o null si el storage no lo aceptó. */
 export function guardarCotizacion(snapshot) {
     const historial = leerHistorial();
     historial.push(snapshot);
-    escribirClave(CLAVE_HISTORIAL, historial);
-    return snapshot;
+
+    return escribirClave(CLAVE_HISTORIAL, historial) ? snapshot : null;
 }
 
-/** Pisa campos de una cotización ya guardada. Devuelve la nueva versión, o null si no la encuentra. */
+/** Pisa campos de una cotización ya guardada. Devuelve null si no la encuentra o si no se pudo guardar. */
 export function modificarCotizacion(numero, cambios) {
     const historial = leerHistorial();
     const cotizacion = historial.find((candidata) => candidata.numero === numero);
@@ -136,8 +137,8 @@ export function modificarCotizacion(numero, cambios) {
     }
 
     Object.assign(cotizacion, cambios);
-    escribirClave(CLAVE_HISTORIAL, historial);
-    return cotizacion;
+
+    return escribirClave(CLAVE_HISTORIAL, historial) ? cotizacion : null;
 }
 
 export function borrarCotizacion(numero) {

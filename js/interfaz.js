@@ -18,6 +18,8 @@ const nodos = {
     catalogoGrid: document.getElementById("catalogo-grid"),
     catalogoFiltros: document.getElementById("catalogo-filtros"),
     presupuestoLista: document.getElementById("presupuesto-lista"),
+    botonVaciar: document.getElementById("btn-vaciar-presupuesto"),
+    buscador: document.getElementById("catalogo-buscador"),
     opciones: document.getElementById("presupuesto-opciones"),
     revision: document.getElementById("revision-detalle"),
     pagoDetalle: document.getElementById("pago-detalle"),
@@ -509,10 +511,22 @@ export function pintarFormularioCliente(cliente) {
     });
 }
 
-export function bloquearFormularioCliente(soloLectura) {
+/**
+ * Apaga todo lo que no se puede tocar con la cotización ya confirmada.
+ * El botón de vaciar se me había escapado: no lo dibuja ningún render, así
+ * que quedaba habilitado y se podía vaciar un presupuesto ya emitido.
+ */
+export function bloquearEdicion(soloLectura) {
     CAMPOS_CLIENTE.forEach((campo) => {
         document.getElementById(`cliente-${campo}`).disabled = soloLectura;
     });
+
+    nodos.botonVaciar.disabled = soloLectura;
+}
+
+/** El input vive en el HTML, así que resetear el estado no lo limpia solo. */
+export function limpiarBuscador() {
+    nodos.buscador.value = "";
 }
 
 /** Muestro todos los errores juntos, no de a uno, y mando el foco al primer campo que falla. */
