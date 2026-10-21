@@ -223,41 +223,7 @@ function manejarClic(evento) {
 De paso quedó más prolijo: un solo listener para todo el simulador, y cada botón
 declara qué hace con un `data-accion`.
 
-### 6. "3 mess" y "2 automatizacións"
-
-Para el plural de las unidades estaba haciendo lo obvio: agregarle una "s".
-Funcionaba para "proyecto" y "tienda", pero me daba "mess", "automatizacións" y
-"set de pantallass".
-
-No hay regla que derive eso bien, así que dejó de ser lógica y pasó a ser dato.
-Agregué `unidadPlural` a cada servicio en el JSON y el código solo elige:
-
-```js
-${cantidad === 1 ? unidad : unidadPlural}
-```
-
-Me quedó como criterio general: cuando una excepción no se puede calcular, va en
-los datos, no en el código.
-
-### 7. Pedir la entrega Express te abarataba el proyecto
-
-Este lo encontré haciendo números a mano para verificar los totales. En esa
-versión el usuario elegía plazo de entrega, y el descuento por volumen lo estaba
-calculando sobre el subtotal, que ya incluía el recargo por plazo. Entonces
-pasaba esto:
-
-- Base de $2.000.000 con entrega estándar → $2.000.000 → tramo del **5%**
-- La misma base con Express (+30%) → $2.600.000 → cruza los $2.500.000 → **10%**
-
-O sea, apurar la entrega te daba más descuento por volumen. No tiene sentido
-comercial: el descuento por volumen es por el tamaño del proyecto, no por cómo
-lo entregás. Moví el cálculo del tramo para que se resuelva sobre la base.
-
-Después saqué los plazos (lo cuento en el punto 14), pero el criterio quedó: el
-tramo se resuelve **siempre sobre la base**, antes de cualquier otro
-modificador. Tengo un test que fija el caso para no volver a romperlo.
-
-### 8. El comprobante no cerraba
+### 6. El comprobante no cerraba
 
 Cuando sumé los medios de pago, al principio aplicaba el recargo o el descuento
 **después** del IVA. Los números daban, pero el comprobante era mentira: el IVA
@@ -267,7 +233,7 @@ el total ya no se corresponde con la suma de neto + 21%.
 Moví el ajuste antes del IVA. Como efecto secundario, ahora al cambiar el medio
 de pago también se mueve el IVA en pantalla, que es lo correcto.
 
-### 9. La suma de las líneas no daba el total
+### 7. La suma de las líneas no daba el total
 
 Me aparecía una diferencia de un peso entre lo que sumaban los ítems en pantalla
 y el total que mostraba abajo.
@@ -277,7 +243,7 @@ función que da formato a los precios (`Math.round` más `maximumFractionDigits`
 Dejé el redondeo en un solo lugar —cada paso del cálculo, con un helper
 `redondear()`— y la función de formato pasó a solo formatear.
 
-### 10. Dos cotizaciones con el mismo número
+### 8. Dos cotizaciones con el mismo número
 
 Tenía un contador guardado aparte en el `localStorage`. Dos problemas: si
 borraba una cotización del historial, el siguiente número se repetía; y con dos
@@ -298,7 +264,7 @@ export function siguienteNumero(historial) {
 }
 ```
 
-### 11. Recargar la página rompía el paso final
+### 9. Recargar la página rompía el paso final
 
 Guardaba en qué paso estaba el usuario, pero no **qué cotización estaba
 mirando**. Al recargar parado en la pantalla de "Listo", intentaba mostrar el
@@ -316,7 +282,7 @@ solo lee la cotización guardada**. Si recalculara desde el presupuesto en curso
 bastaba con volver al paso 1 y quitar un servicio para que el número de
 cotización y el total dejaran de corresponderse.
 
-### 12. Un doble clic generaba dos cotizaciones
+### 10. Un doble clic generaba dos cotizaciones
 
 Entre que apretás "Confirmar y pagar" y que respondés el modal de confirmación
 pasan varios segundos. En ese tiempo se puede volver a apretar el botón, y se
@@ -337,7 +303,7 @@ try {
 }
 ```
 
-### 13. Si alguien edita el JSON, no se rompe
+### 11. Si alguien edita el JSON, no se rompe
 
 Esto no fue un error que tuve sino uno que me quise anticipar. El presupuesto se
 guarda en el `localStorage` como `{ id, cantidad }`, sin el precio. Si yo borro
@@ -354,11 +320,10 @@ Lo opuesto pasa con el historial: ahí **sí** guardo los precios y el medio de
 pago aplicado. Una cotización ya emitida no puede cambiar de precio porque
 después toqué la lista.
 
-### 14. Lo simplifiqué: de seis pasos a tres
+### 12. Lo simplifiqué: de seis pasos a tres
 
 Cuando lo terminé tenía casi 2100 líneas de JavaScript. Funcionaba y cumplía
-todo, pero me di cuenta de que no lo podía explicar entero en una defensa: ese
-volumen juega en contra.
+todo, pero me di cuenta de que se podía simplificar la cotización. 
 
 Lo primero que pensé fue sacar el paso de "plan y plazo", pero antes de ponerme
 lo medí, y el resultado me sorprendió: eso solo achicaba el JS un 5%. El motivo
@@ -381,25 +346,7 @@ Lo que perdí, para ser honesto: el proyecto se parece más a un carrito con
 checkout que a un cotizador. Antes el usuario tomaba tres tipos de decisión
 (qué compra, cómo lo quiere, cómo paga) y ahora toma dos.
 
-### 15. Un `const` que tapaba una función del módulo
-
-Vaciaba el presupuesto y no pasaba nada en pantalla. Apretaba F5 y ahí sí
-aparecía vacío. O sea: el estado se guardaba bien, pero el redibujo nunca
-llegaba.
-
-Tenía una función del módulo que se llamaba `color()` (leía un token del CSS) y,
-adentro de `notificar()`, una variable local `const color = COLORES_AVISO[tipo]`.
-La local tapa a la del módulo, así que la llamada tiraba
-`TypeError: color is not a function` justo antes de redibujar. El estado ya había
-cambiado; lo que faltaba era la pantalla.
-
-Lo peor es que mis pruebas no lo veían: `notificar()` arrancaba con un
-`if (typeof Toastify === "undefined") return;` y en Node Toastify no existía, así
-que el cuerpo entero —el bug incluido— nunca se ejecutaba. Renombré las dos
-variables, definí Toastify en el entorno de pruebas y agregué un control que
-busca nombres locales que tapen a los del módulo.
-
-### 16. Un botón deshabilitado que se veía igual que uno activo
+### 13. Un botón deshabilitado que se veía igual que uno activo
 
 Con una cotización ya contratada, volvía al paso 1, agregaba un servicio,
 apretaba "Vaciar presupuesto" y no pasaba nada.
@@ -418,34 +365,7 @@ los manejadores directamente, ignorando el atributo `disabled` que el navegador
 sí respeta. Podía hacer cosas que un usuario no puede, y por eso seguía en verde
 sobre un botón que en pantalla no hacía nada.
 
----
 
-## Cómo lo probé
-
-Armé tres capas, porque cada una se me escapó al menos una vez.
-
-**1. Las cuentas.** Las funciones de cálculo de `datos.js` son puras —entra un
-objeto, sale un objeto, no tocan el DOM ni el estado global— así que las pude
-probar por separado. Son **68 comprobaciones** con los valores resueltos a mano
-en papel, no copiados de lo que devuelve el código: si los copiara, la prueba
-solo confirmaría que el código hace lo que hace. Cubren el presupuesto vacío, un
-ítem simple, varios ítems con descuento, cada medio de pago, los bordes exactos
-de los tramos y el saneamiento de un `localStorage` corrupto.
-
-**2. El HTML y el circuito (golden master).** Llamo a cada función que dibuja con
-los mismos datos siempre, guardo el HTML que sale y lo comparo contra la corrida
-anterior. Si cambia un espacio, salta. Son 21 capturas del render y 10 pasos del
-circuito completo.
-
-Al principio el golden del circuito **no** detectaba un cambio de redondeo,
-porque todos los montos de prueba daban redondos. Le agregué un caso con
-transferencia que produce centavos fraccionarios y ahí sí.
-
-**3. Los clics.** Cargo `app.js` de verdad sobre un DOM de mentira y le disparo
-eventos: elegir un medio de pago, confirmar, pagar, volver atrás, vaciar. Son 24
-comprobaciones. Esta capa nació después del bug 15, que las otras dos no veían.
-
----
 
 ## Checklist de la consigna
 
