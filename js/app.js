@@ -9,6 +9,7 @@ import * as interfaz from "./interfaz.js";
 
 const CATEGORIA_TODAS = "Todas";
 const PASO_INICIAL = 1;
+const PASO_REVISION = 4;
 const PASO_PAGO = 5;
 const DEMORA_PAGO = 1400;
 const PATRON_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -104,12 +105,12 @@ function hidratarLineas() {
         .filter((linea) => linea !== null);
 }
 
-function totalesActuales() {
+/** Recibe las líneas ya hidratadas para no volver a calcularlas por dentro. */
+function totalesDe(lineas) {
     return datos.calcularTotales({
-        lineas: hidratarLineas(),
+        lineas,
         plan: buscarPlan(),
         plazo: buscarPlazo(),
-        medioPago: null,
         tramos: estado.configuracion.tramosDescuento,
         iva: estado.configuracion.iva
     });
@@ -194,14 +195,14 @@ function pasoMaximoAlcanzable() {
  * Siempre con el número de destino, nunca paso++: con dos clics rápidos
  * en Continuar se salteaba un paso.
  */
-function irAPaso(numero, { avisar = true } = {}) {
+function irAPaso(numero) {
     const destino = Math.min(Math.max(numero, PASO_INICIAL), ultimoPaso());
     const tope = pasoMaximoAlcanzable();
 
     if (destino > tope) {
         const mensaje = motivoBloqueo(tope);
 
-        if (avisar && mensaje !== "") {
+        if (mensaje !== "") {
             interfaz.mostrarAvisoPaso(tope, mensaje);
             interfaz.notificar("error", mensaje);
         }
@@ -309,7 +310,8 @@ async function vaciarPresupuesto() {
 // ------------------------------------------------------------
 
 function armarSnapshot() {
-    const totales = totalesActuales();
+    const lineas = hidratarLineas();
+    const totales = totalesDe(lineas);
     const { nombre, multiplicador } = buscarPlan();
     const plazo = buscarPlazo();
 
@@ -319,7 +321,7 @@ function armarSnapshot() {
         estado: datos.ESTADOS.PENDIENTE,
         fechaContratacion: null,
         cliente: { ...estado.cliente },
-        lineas: hidratarLineas(),
+        lineas,
         plan: { id: estado.planId, nombre, multiplicador },
         plazo: { id: plazo.id, nombre: plazo.nombre, recargo: plazo.recargo, semanas: plazo.semanas },
         medioPago: null,
@@ -333,14 +335,17 @@ async function confirmarCotizacion() {
         return;
     }
 
-    const bloqueo = motivoBloqueo(pasoMaximoAlcanzable());
+    // Si todavía no se llega a la revisión, falta algo en un paso anterior:
+    // lo mando ahí en vez de confirmar a medias. No necesito mirar el motivo,
+    // que el tope sea menor ya implica que hay uno.
+    const tope = pasoMaximoAlcanzable();
 
-    if (bloqueo !== "" && pasoMaximoAlcanzable() < 4) {
-        irAPaso(pasoMaximoAlcanzable());
+    if (tope < PASO_REVISION) {
+        irAPaso(tope);
         return;
     }
 
-    const totales = totalesActuales();
+    const totales = totalesDe(hidratarLineas());
     const confirmado = await interfaz.confirmar(
         "¿Confirmar la cotización?",
         `Vas a emitir una cotización por <strong>${interfaz.formatearMoneda(totales.totalAPagar)}</strong>.
@@ -619,14 +624,19 @@ function persistir() {
 
 /** Después de tocar el estado llamo siempre a esto: guarda, calcula y dibuja. */
 function actualizar() {
-    reencuadrar();
+    // El tope no depende del paso en que estemos, y reencuadrar() solo toca el
+    // paso: por eso alcanza con calcularlo una vez. Antes se recorrían todos
+    // los pasos dos veces por refresco, con la validación del cliente adentro.
+    const tope = pasoMaximoAlcanzable();
+
+    estado.paso = Math.min(estado.paso, tope);
     persistir();
 
     const soloLectura = !esEditable();
     const lineas = hidratarLineas();
     const { planesSoporte, plazos, mediosPago } = estado.configuracion;
 
-    interfaz.renderBarraPasos(estado.configuracion.pasos, estado.paso, pasoMaximoAlcanzable());
+    interfaz.renderBarraPasos(estado.configuracion.pasos, estado.paso, tope);
     interfaz.mostrarPaso(estado.configuracion.pasos, estado.paso);
     interfaz.mostrarBannerCongelado(estado.fase, estado.cotizacionActivaId);
 
@@ -636,7 +646,7 @@ function actualizar() {
     interfaz.renderOpciones(planesSoporte, plazos, estado.planId, estado.plazoId, { soloLectura });
     interfaz.bloquearEdicion(soloLectura);
 
-    const totales = totalesActuales();
+    const totales = totalesDe(lineas);
     interfaz.renderResumenes(totales, { vacio: lineas.length === 0 });
 
     if (lineas.length > 0) {

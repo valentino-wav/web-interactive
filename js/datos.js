@@ -310,7 +310,7 @@ export function resolverTramo(tramos, monto) {
  * - El ajuste por medio de pago va antes del IVA. El IVA es el 21% del
  *   neto, así que si el recargo se suma después el comprobante no cierra.
  */
-export function calcularTotales({ lineas, plan, plazo, medioPago, tramos, iva }) {
+export function calcularTotales({ lineas, plan, plazo, tramos, iva }) {
     const base = redondear(
         lineas.reduce((acumulado, { precioUnitario, cantidad }) => acumulado + precioUnitario * cantidad, 0)
     );
@@ -324,9 +324,11 @@ export function calcularTotales({ lineas, plan, plazo, medioPago, tramos, iva })
     const recargoPlazo = redondear(baseNeta * plazo.recargo);
     const neto = redondear(baseNeta + soporte + recargoPlazo);
 
-    const porcentajeAjuste = medioPago ? medioPago.ajuste : 0;
-    const ajustePago = redondear(neto * porcentajeAjuste);
-    const netoFinal = redondear(neto + ajustePago);
+    // Acá todavía no hay medio de pago elegido: el ajuste lo aplica después
+    // aplicarMedioPago(), ya sobre la cotización emitida. Dejo las dos claves
+    // igual porque la pantalla de revisión lee netoFinal.
+    const ajustePago = 0;
+    const netoFinal = neto;
 
     const montoIva = redondear(netoFinal * iva);
     const totalAPagar = redondear(netoFinal + montoIva);

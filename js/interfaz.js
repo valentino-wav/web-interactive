@@ -252,7 +252,7 @@ export function cuerpoConfirmacionPago(numero, monto, nombreMedio) {
 }
 
 /** Le pregunta al usuario y devuelve true o false. */
-export async function confirmar(titulo, cuerpoHtml, textoConfirmar = "Confirmar") {
+export async function confirmar(titulo, cuerpoHtml, textoConfirmar) {
     if (typeof Swal === "undefined") {
         return modalPropio(titulo, cuerpoHtml, textoConfirmar, true);
     }
@@ -294,7 +294,7 @@ export function ocupado(idBoton, activo, textoOcupado = "Procesando…") {
 }
 
 /** La cortina que tapa la pantalla mientras "se procesa" el pago. */
-export function procesando(mostrar, mensaje = "Procesando el pago…") {
+export function procesando(mostrar) {
     const existente = document.getElementById("pago-procesando");
 
     if (!mostrar) {
@@ -312,7 +312,7 @@ export function procesando(mostrar, mensaje = "Procesando el pago…") {
     capa.innerHTML = `
         <div class="modal-propio-caja pago-procesando" role="status" aria-live="assertive">
             <span class="cotizador-spinner" aria-hidden="true"></span>
-            <p>${escapar(mensaje)}</p>
+            <p>Procesando el pago…</p>
         </div>`;
 
     document.body.append(capa);
